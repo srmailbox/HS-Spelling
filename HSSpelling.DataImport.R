@@ -16,11 +16,13 @@
 # Author: Serje Robidoux
 # CHANGELOG:
 # 2023/11/08 - adding in the other testing data for profiling purposes.
+# 2024/06/05 - redoing the accuracy coding based on regular expressions and the
+#              actual spellings produced for the MoST.
 
 include(readxl)
 
 # 1.0 Demographic information about the students ####
-demog = read_xlsx('High school data 2017 deidentified.xlsx', sheet="Master")
+demog = read_xlsx('High school data 2017 deidentified.xlsx', sheet="Master ")
 str(demog)
 colnames(demog)[8]="Excluded"
 
@@ -36,6 +38,7 @@ colnames(DiST.i)[c(1:5,41:42)]=c("ID", "School", "Grade", "Gender", "testDate"
                                  , "totalAcc", "Excluded")
 DiST.i = DiST.i %>% filter(!ID %in% exclIDs) %>% 
   rename(DiST.Irr = totalAcc)
+# str(DiST.i)
 
 ## 2.2 DiST.n Nonword word spelling ####
 # DiST.n has lots of alternative "correct" responses for many items and these
@@ -60,9 +63,9 @@ DiST.n = DiST.n %>% filter(!ID %in% exclIDs) %>% rename(DiST.Non=totalAcc)
 
 ## 2.3 MoST Morphological nonwords test ####
 
-# The MoST has an odd design - each item falls into a morphological category
-# but also many items have both an "overall" accuracy, and an accuracy for a
-# specific subcomponent of the item;
+# The MoST has a more complex design - each item falls into a morphological 
+# category but also many items have both an "overall" accuracy, and an accuracy 
+# for a specific subcomponent of the item;
 # E.g., in pronkily, there is the question of whether or not the word is spelled
 # correctly, but also whether or not the y in pronky was changed to an i.
 # So the overall word could be incorrect, but the "i" is correct:
@@ -72,16 +75,128 @@ DiST.n = DiST.n %>% filter(!ID %in% exclIDs) %>% rename(DiST.Non=totalAcc)
 # pronkily would produce 1, 1
 # proncyly would produce 0, 0
 
-MoST.items = read_xlsx('High school data 2017 deidentified.xlsx', sheet="MoST-items"
-                       , skip = 0) %>% data.frame
-MoST = read_xlsx('High school data 2017 deidentified.xlsx', sheet="MoST-A"
-                 , range = "F4:AZ483"
-                 , na = c("NS.illegible", "NS.unscorable", "NS.Unscorable"
-                          , "NS.missing"
-                          , "NS.Stombing", "NS.stombing", "NS.Stumbing")
-                 ) %>% data.frame
+MoST.responses = read_csv('hsspell_itemlevel.csv'
+                       , skip = 0, na=c("NA", "NS.illegible")
+                      ) %>% data.frame
 
-MoST = MoST %>% filter(!ID %in% exclIDs)
+MoST.spell = MoST.responses %>% filter(!ID %in% exclIDs)
+# Columns will be taken from the Item set in the scoring.
+
+### 2.3.1 MoST Scoring ####
+# We have a set of rules for each item that (hopefully) allows us to code for
+# accuracy:
+# a) whole item
+# b) base word
+# c) suffix
+# d) "rule knowledge" where relevant
+
+MoST.scoring = read_xlsx('Information for item level scoring.xlsx'
+                         , sheet="For R") %>% 
+  mutate(MiddleRegex = ifelse(is.na(MiddleRegex), "", MiddleRegex))
+
+colnames(MoST.spell)[3:ncol(MoST.spell)]=MoST.scoring$Item
+
+#### 2.3.1.1 Reshape the Response data ####
+
+MoST.long = MoST.spell %>% 
+  pivot_longer(cols=-(2:1), names_to = "Item", values_to="spelling") %>% 
+  merge(MoST.scoring, by="Item", all.x=T) %>% 
+  mutate(BaseAcc = !is.na(str_extract(spelling, BaseRegex))
+         , SuffixAcc = !is.na(str_extract(spelling, SuffixRegex))
+         , RuleAcc = ifelse(is.na(RuleRegex), NA
+                            , !is.na(str_extract(spelling, RuleRegex))
+                            )
+         # Any letters that appear between an acceptable BaseRegex and an
+         # acceptable SuffixRegex
+         , midLetters = str_extract(spelling
+                                    , paste0(BaseRegex, "(.*)", SuffixRegex)
+                                    , group=1)
+         # , FullWordRegex = paste0(BaseRegex, MiddleRegex, SuffixRegex)
+         , FullWordAcc = !is.na(str_extract(spelling, FullWordRegex))
+         ### Corrections for stomming, where stombing is also correct, but
+         # stombming would not be.
+         , FullWordAcc = ifelse(Item=="stomming"
+                              , ifelse(spelling=="stombing", TRUE
+                                       , ifelse(spelling=="stombming", FALSE
+                                                , FullWordAcc))
+                              , FullWordAcc)
+         )
+
+# Just a check of what responses are being accepted as correct.
+# MoST.long %>% select(Item, FullWordRegex, FullWordAcc) %>% unique %>% filter(FullWordAcc)
+
+# For verification purposes, for each item, produce a list of "correct" and
+# "incorrect" responses, for each of the different Accuracies.
+
+MoST.FullWord.Profile=MoST.long %>% select(Item, FullWordAcc, spelling) %>% 
+  mutate(FullWordAcc = ifelse(FullWordAcc, "Accepted", "Errors")) %>% 
+  group_by(Item, FullWordAcc) %>% 
+  reframe(spellings = unique(spelling)) %>% 
+    group_by(Item, FullWordAcc) %>% 
+    mutate(counter=1:n()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols=counter
+              , names_from=c("Item", "FullWordAcc")
+              , values_from="spellings")%>% 
+  mutate(across(everything(), ~sort(.x, na.last=T))
+         , across(everything(), ~replace_na(.x,"")))
+
+
+write.table(MoST.FullWord.Profile, file="MoST.Fullwords.Responses.csv"
+          , sep=";", row.names=F)
+
+MoST.BaseWord.Profile=MoST.long %>% select(Item, BaseAcc, spelling) %>% 
+  mutate(BaseAcc = ifelse(BaseAcc, "Accepted", "Errors")) %>% 
+  group_by(Item, BaseAcc) %>% 
+  reframe(spellings = unique(spelling)) %>% 
+  group_by(Item, BaseAcc) %>% 
+  mutate(counter=1:n()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols=counter
+              , names_from=c("Item", "BaseAcc")
+              , values_from="spellings")%>% 
+  mutate(across(everything(), ~sort(.x, na.last=T))
+         , across(everything(), ~replace_na(.x,"")))
+
+
+write.table(MoST.BaseWord.Profile, file="MoST.BaseAcc.Responses.csv"
+          , sep=";", row.names=F)
+
+
+MoST.Suffix.Profile=MoST.long %>% select(Item, SuffixAcc, spelling) %>% 
+  mutate(SuffixAcc = ifelse(SuffixAcc, "Accepted", "Errors")) %>% 
+  group_by(Item, SuffixAcc) %>% 
+  reframe(spellings = unique(spelling)) %>% 
+  group_by(Item, SuffixAcc) %>% 
+  mutate(counter=1:n()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols=counter
+              , names_from=c("Item", "SuffixAcc")
+              , values_from="spellings")%>% 
+  mutate(across(everything(), ~sort(.x, na.last=T))
+         , across(everything(), ~replace_na(.x,"")))
+
+
+write.table(MoST.Suffix.Profile, file="MoST.Suffix.Responses.csv"
+          , sep=";", row.names=F)
+
+
+MoST.Rule.Profile=MoST.long %>% select(Item, RuleAcc, spelling) %>% 
+  filter(!is.na(RuleAcc)) %>% # not all items are relevant to rules.
+  mutate(RuleAcc = ifelse(RuleAcc, "Accepted", "Errors")) %>% 
+  group_by(Item, RuleAcc) %>% 
+  reframe(spellings = unique(spelling)) %>% 
+  group_by(Item, RuleAcc) %>% 
+  mutate(counter=1:n()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols=counter
+              , names_from=c("Item", "RuleAcc")
+              , values_from="spellings") %>% 
+  mutate(across(everything(), ~sort(.x, na.last=T))
+         , across(everything(), ~replace_na(.x,"")))
+
+write.table(MoST.Rule.Profile, file="MoST.Rule.Responses.csv"
+          , sep=";", row.names=F)
 
 ### need to calculate some total scores here.
 
@@ -90,7 +205,7 @@ MoST.long = MoST %>% select(-Excluded...Serbian...Resolved, troke, grent) %>%
                , names_sep = "_"
                , names_to = c("Item", "Subscale")
                , values_to = "Accuracy") %>% 
-  mutate(Subscale = ifelse(is.na(Subscale), "FullItem", Subscale))
+  mutate(Subscale = ifelse(is.na(Subscale), "FullItem", Subscale)) %>% 
 
 MoST.subscales = MoST.long %>% 
   group_by(ID, Gender, D.O.Assessment, Subscale) %>% 
