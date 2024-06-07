@@ -24,12 +24,14 @@ if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists)))
 HSSpell.clst = HSSpelling %>% 
   select(ID, AgeM, starts_with("DiST"), starts_with("MoST"), starts_with("CC2")
          #, starts_with("TOWRE"), starts_with("WIAT"), LetPos # Very few obs
-  ) %>% drop_na()
+         , -contains("notNA"), -ends_with("sc")
+  ) %>% 
+  drop_na()
 
 ## 1.1.1 Adjust for Age ###
 
 HSSpell.age = HSSpell.clst %>% 
-  mutate(across(DiST.Irr:CC2.Non
+  mutate(across(c(-ID, -AgeM)
                 , function(x) 
                   rstandard(lm(x~AgeM, HSSpell.clst))
   )
@@ -50,32 +52,35 @@ HSSpell.hclst = lapply(clst.methods
                        , function(x) hclust(HSSpell.dist, method=x[1]))
 
 ### 1.3.1 Plot the results ####
-# lapply(HSSpell.hclst,
-#        function (x) {
-#          png(paste0("Images/HClust.", x$method,".png"), height=640, width=800)
-#          plot(x, labels=F, main=x$method)
-#          dev.off()
-#        })
+lapply(HSSpell.hclst,
+       function (x) {
+         png(paste0("Images/HClust.", x$method,".png"), height=640, width=800)
+         plot(x, labels=F, main=x$method)
+         dev.off()
+       })
 # dev.off() # lapply always seems to leave one open
 
 ## 1.4 Look at some options ####
 
-table(cutree(HSSpell.hclst$ward.D2, 6))
+table(cutree(HSSpell.hclst$mcquitty, 2))
 ## Looks like complete, ward D & D2 are all producing reasonable clusters. 
-# Complete produces 5 (one small)
-# Ward D  produces 9
-# Ward D2 produces 6/7
+# I'm aiming for at least 30 kids in a group (7.5% of the sample)
+# Complete produces 4
+# Ward D  produces 8 (one small, 16)
+# Ward D2 produces 6 (one small, 16; one just shy, 27)
+# McQuitty produces only 2
 
 
-HSSpell.age$hclust.cmplt = cutree(HSSpell.hclst$complete, 5)
-HSSpell.age$hclust.wardD = cutree(HSSpell.hclst$ward.D, 9)
+HSSpell.age$hclust.cmplt = cutree(HSSpell.hclst$complete, 4)
+HSSpell.age$hclust.wardD = cutree(HSSpell.hclst$ward.D, 8)
 HSSpell.age$hclust.wardD2 = cutree(HSSpell.hclst$ward.D2, 6)
+HSSpell.age$hclust.mcquitty = cutree(HSSpell.hclst$mcquitty, 2)
 
 ## 1.5 Plot results ####
 
 # colnames(HSSpell.clst)
 
-## 1.5.1 Complete linkage: 5 grps ####
+## 1.5.1 Complete linkage: 4 grps ####
 cmplt.ggp = HSSpell.age %>% 
   select(AgeM:CC2.Non, hclust.cmplt) %>% 
   rename(Group = hclust.cmplt) %>% 
@@ -88,16 +93,20 @@ cmplt.ggp = HSSpell.age %>%
     , names_to = "Measure"
     , values_to = "Mean"
   ) %>% 
-  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:12])
+  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:16])
          , Group = factor(Group)) %>% 
   ggplot(aes(x=Group, fill = Measure, y=Mean))+
   geom_col(position=position_dodge())+
   geom_label(data=aggregate(ID~hclust.cmplt, HSSpell.age, length)
              , mapping=aes(x=hclust.cmplt, y=1, label=paste("N =", ID), fill=NULL))+
   ggtitle("Complete Linkage - Spelling + CC2", "Age-adjusted scores")+
-  scale_fill_manual(values=c("darkgrey", "#ff0000", "#aa0000"#, "#770000"
-                              , "#006600", "#00ff00", "#008800", "#00aa00", "#00cc00"
-                              , "#000088", "#0000ff", "#0000aa"))
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                        ))
 
 # This looks to me like group 
 # 1 is generally average readers and spellers, 
@@ -111,7 +120,7 @@ cmplt.ggp = HSSpell.age %>%
 wardD.ggp = HSSpell.age %>% 
   select(AgeM:CC2.Non, hclust.wardD) %>% 
   rename(Group = hclust.wardD) %>% 
-  mutate(across(AgeM, scale)) %>% 
+  mutate(AgeM = scale(AgeM)) %>% 
   group_by(Group) %>% 
   summarise_all(mean) %>% 
   ungroup() %>% 
@@ -120,16 +129,20 @@ wardD.ggp = HSSpell.age %>%
     , names_to = "Measure"
     , values_to = "Mean"
   ) %>% 
-  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:12])
+  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:16])
          , Group = factor(Group)) %>% 
   ggplot(aes(x=Group, fill = Measure, y=Mean))+
   geom_col(position=position_dodge())+
   geom_label(data=aggregate(ID~hclust.wardD, HSSpell.age, length)
              , mapping=aes(x=hclust.wardD, y=1, label=paste("N =", ID), fill=NULL))+
-  ggtitle("Ward D - Spelling + CC2", "Age-adjusted scores")+
-  scale_fill_manual(values=c("darkgrey", "#ff0000", "#aa0000"#, "#770000"
-                             , "#006600", "#00ff00", "#008800", "#00aa00", "#00cc00"
-                             , "#000088", "#0000ff", "#0000aa"))
+  ggtitle("Ward D Linkage - Spelling + CC2", "Age-adjusted scores")+
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
 
 # This looks to me like group 
 # 1 is generally good readers and spellers, 
@@ -146,7 +159,7 @@ wardD.ggp = HSSpell.age %>%
 wardD2.ggp = HSSpell.age %>% 
   select(AgeM:CC2.Non, hclust.wardD2) %>% 
   rename(Group = hclust.wardD2) %>% 
-  mutate(across(AgeM, scale)) %>% 
+  mutate(AgeM = scale(AgeM)) %>% 
   group_by(Group) %>% 
   summarise_all(mean) %>% 
   ungroup() %>% 
@@ -155,16 +168,20 @@ wardD2.ggp = HSSpell.age %>%
     , names_to = "Measure"
     , values_to = "Mean"
   ) %>% 
-  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:12])
+  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:16])
          , Group = factor(Group)) %>% 
   ggplot(aes(x=Group, fill = Measure, y=Mean))+
   geom_col(position=position_dodge())+
   geom_label(data=aggregate(ID~hclust.wardD2, HSSpell.age, length)
              , mapping=aes(x=hclust.wardD2, y=1, label=paste("N =", ID), fill=NULL))+
-  ggtitle("Ward D2 - Spelling + CC2", "Age-adjusted scores")+
-  scale_fill_manual(values=c("darkgrey", "#ff0000", "#aa0000"#, "#770000"
-                             , "#006600", "#00ff00", "#008800", "#00aa00", "#00cc00"
-                             , "#000088", "#0000ff", "#0000aa"))
+  ggtitle("Ward D2 Linkage - Spelling + CC2", "Age-adjusted scores")+
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
 
 # This looks to me like group 
 # 1 is generally goood reading and spelling
@@ -173,6 +190,36 @@ wardD2.ggp = HSSpell.age %>%
 # 4: poor-ish spellers, poor readers
 # 5: average but very poor at the _e items
 # 6/7: very poor readers and spellers
+
+## 1.5.4 McQuitty: 2 grps ####
+mcquitty.ggp = HSSpell.age %>% 
+  select(AgeM:CC2.Non, hclust.mcquitty) %>% 
+  rename(Group = hclust.mcquitty) %>% 
+  mutate(AgeM = scale(AgeM)) %>% 
+  group_by(Group) %>% 
+  summarise_all(mean) %>% 
+  ungroup() %>% 
+  pivot_longer(
+    AgeM:CC2.Non
+    , names_to = "Measure"
+    , values_to = "Mean"
+  ) %>% 
+  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:16])
+         , Group = factor(Group)) %>% 
+  ggplot(aes(x=Group, fill = Measure, y=Mean))+
+  geom_col(position=position_dodge())+
+  geom_label(data=aggregate(ID~hclust.mcquitty, HSSpell.age, length)
+             , mapping=aes(x=hclust.mcquitty, y=1, label=paste("N =", ID), fill=NULL))+
+  ggtitle("McQuitty Linkage - Spelling + CC2", "Age-adjusted scores")+
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
+
+# A very average group, and 24 very poor reader/spellers
 
 ### 1.5.4 Create Images ####
 
@@ -201,7 +248,7 @@ wardD2.ggp = HSSpell.age %>%
 ## 2.1.1 Adjust for Age ###
 
 # HSSpell.age = HSSpell.clst %>% 
-#   mutate(across(DiST.Irr:MoST_y2i
+#   mutate(across(DiST.Irr:MoST.y_i
 #                 , function(x) 
 #                   rstandard(lm(x~AgeM, HSSpell.clst))
 #   )
@@ -209,7 +256,7 @@ wardD2.ggp = HSSpell.age %>%
 
 ## 2.2 Calculate distances (use euclidean) ####
 HSSpellOnly.dist = HSSpell.age %>% 
-  select(-ID, -AgeM, -starts_with("CC2")) %>% 
+  select(-ID, -AgeM, -starts_with("CC2"), -starts_with("hclust")) %>% 
   dist
 
 ## 2.3 try all clustering methods ####
@@ -232,16 +279,17 @@ HSSpellOnly.hclst = lapply(clst.methods
 
 ## 2.4 Look at some options ####
 
-table(cutree(HSSpellOnly.hclst$ward.D2, 7))
+table(cutree(HSSpellOnly.hclst$mcquitty, 4))
 ## Looks like complete, ward D & D2 are all producing reasonable clusters. 
-# Complete produces 5 (one small)
-# Ward D  produces 10
-# Ward D2 produces 7
+# Complete produces 4 (one small)
+# Ward D  produces 8 (one small)
+# Ward D2 produces 9 (one small)
 
 
-HSSpell.age$hclust.cmplt.SpellOnly = cutree(HSSpellOnly.hclst$complete, 5)
-HSSpell.age$hclust.wardD.SpellOnly = cutree(HSSpellOnly.hclst$ward.D, 10)
-HSSpell.age$hclust.wardD2.SpellOnly = cutree(HSSpellOnly.hclst$ward.D2, 7)
+HSSpell.age$hclust.cmplt.SpellOnly = cutree(HSSpellOnly.hclst$complete, 4)
+HSSpell.age$hclust.wardD.SpellOnly = cutree(HSSpellOnly.hclst$ward.D, 8)
+HSSpell.age$hclust.wardD2.SpellOnly = cutree(HSSpellOnly.hclst$ward.D2, 9)
+HSSpell.age$hclust.mcquitty.SpellOnly = cutree(HSSpellOnly.hclst$mcquitty, 4)
 
 ## 2.5 Plot results ####
 
@@ -249,14 +297,14 @@ HSSpell.age$hclust.wardD2.SpellOnly = cutree(HSSpellOnly.hclst$ward.D2, 7)
 
 ## 2.5.1 Complete linkage: 5 grps ####
 cmplt.SpellOnly.ggp = HSSpell.age %>% 
-  select(AgeM:MoST_y2i, hclust.cmplt.SpellOnly) %>% 
+  select(AgeM:MoST.y_i, hclust.cmplt.SpellOnly) %>% 
   rename(Group = hclust.cmplt.SpellOnly) %>% 
   mutate(AgeM = scale(AgeM)) %>% 
   group_by(Group) %>% 
   summarise_all(mean) %>% 
   ungroup() %>% 
   pivot_longer(
-    AgeM:MoST_y2i
+    AgeM:MoST.y_i
     , names_to = "Measure"
     , values_to = "Mean"
   ) %>% 
@@ -267,10 +315,13 @@ cmplt.SpellOnly.ggp = HSSpell.age %>%
   geom_label(data=aggregate(ID~hclust.cmplt.SpellOnly, HSSpell.age, length)
              , mapping=aes(x=hclust.cmplt.SpellOnly, y=1, label=paste("N =", ID), fill=NULL))+
   ggtitle("Complete Linkage - Spelling Only", subtitle = "Age-adjusted")+
-  scale_fill_manual(values=c("darkgrey", "#ff0000", "#aa0000"
-                             , "#006600", "#00ff00", "#008800", "#00aa00", "#00cc00"
-                             , "#000088", "#0000ff", "#0000aa"))
-
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
 # This looks to me like group 
 # 1 slightly above average readers and spellers, 
 # 2 slightly below readers/spellers
@@ -281,14 +332,14 @@ cmplt.SpellOnly.ggp = HSSpell.age %>%
 
 ## 2.5.2 Ward.D: 10 grps ####
 wardD.SpellOnly.ggp = HSSpell.age %>% 
-  select(AgeM:MoST_y2i, hclust.wardD.SpellOnly) %>% 
+  select(AgeM:MoST.y_i, hclust.wardD.SpellOnly) %>% 
   rename(Group = hclust.wardD.SpellOnly) %>% 
   mutate(across(AgeM, scale)) %>% 
   group_by(Group) %>% 
   summarise_all(mean) %>% 
   ungroup() %>% 
   pivot_longer(
-    AgeM:MoST_y2i
+    AgeM:MoST.y_i
     , names_to = "Measure"
     , values_to = "Mean"
   ) %>% 
@@ -299,32 +350,25 @@ wardD.SpellOnly.ggp = HSSpell.age %>%
   geom_label(data=aggregate(ID~hclust.wardD.SpellOnly, HSSpell.age, length)
              , mapping=aes(x=hclust.wardD.SpellOnly, y=1, label=paste("N =", ID), fill=NULL))+
   ggtitle("Ward D - Spelling Only", "Age-adjusted")+
-  scale_fill_manual(values=c("darkgrey", "#ff0000", "#aa0000"
-                             , "#006600", "#00ff00", "#008800", "#00aa00", "#00cc00"
-                             , "#000088", "#0000ff", "#0000aa"))
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
 
-# This looks to me like group 
-# 1 is generally good readers and spellers, 
-# 2 below average, especially f2v
-# 3 slightly above average
-# 4 generally good except for f2v (so similar to 1)
-# 5: poor on DiST and some MoST
-# 6: average, but bad at _e
-# 7: small group, very, very poor
-# 8: slighlty above average, except for DiST.Non
-# 9: Poor Spellers
-# 10: poor spellers, very poor at f2v, and y2i
 
 ## 2.5.3 Ward.D2: 9 grps ####
 wardD2.SpellOnly.ggp = HSSpell.age %>% 
-  select(AgeM:MoST_y2i, hclust.wardD2.SpellOnly) %>% 
+  select(AgeM:MoST.y_i, hclust.wardD2.SpellOnly) %>% 
   rename(Group = hclust.wardD2.SpellOnly) %>% 
   mutate(across(AgeM, scale)) %>% 
   group_by(Group) %>% 
   summarise_all(mean) %>% 
   ungroup() %>% 
   pivot_longer(
-    AgeM:MoST_y2i
+    AgeM:MoST.y_i
     , names_to = "Measure"
     , values_to = "Mean"
   ) %>% 
@@ -335,18 +379,41 @@ wardD2.SpellOnly.ggp = HSSpell.age %>%
   geom_label(data=aggregate(ID~hclust.wardD2.SpellOnly, HSSpell.age, length)
              , mapping=aes(x=hclust.wardD2.SpellOnly, y=1, label=paste("N =", ID), fill=NULL))+
   ggtitle("Ward D2 - Spelling Only", "Age-adjusted")+
-  scale_fill_manual(values=c("darkgrey", "#ff0000", "#aa0000"
-                             , "#006600", "#00ff00", "#008800", "#00aa00", "#00cc00"
-                             , "#000088", "#0000ff", "#0000aa"))
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
 
-# This looks to me like group 
-# 1 good spellers
-# 2 slightly below average (bad at f2v)
-# 3:very average/slightly above average
-# 4: good spellers except f2v (MoST)
-# 5: poor spellers, excpt _f2v
-# 6: average but very low on _e
-# 7: small group of very poor spellers.
+## 2.5.4 McQuitty: 9 grps ####
+mcquitty.SpellOnly.ggp = HSSpell.age %>% 
+  select(AgeM:MoST.y_i, hclust.mcquitty.SpellOnly) %>% 
+  rename(Group = hclust.mcquitty.SpellOnly) %>% 
+  mutate(across(AgeM, scale)) %>% 
+  group_by(Group) %>% 
+  summarise_all(mean) %>% 
+  ungroup() %>% 
+  pivot_longer(
+    AgeM:MoST.y_i
+    , names_to = "Measure"
+    , values_to = "Mean"
+  ) %>% 
+  mutate(Measure = factor(Measure, levels=colnames(HSSpell.age)[2:12])
+         , Group = factor(Group)) %>% 
+  ggplot(aes(x=Group, fill = Measure, y=Mean))+
+  geom_col(position=position_dodge())+
+  geom_label(data=aggregate(ID~hclust.mcquitty.SpellOnly, HSSpell.age, length)
+             , mapping=aes(x=hclust.mcquitty.SpellOnly, y=1, label=paste("N =", ID), fill=NULL))+
+  ggtitle("McQuitty - Spelling Only", "Age-adjusted")+
+  scale_fill_manual(values=
+                      c("darkgrey", # Age
+                        "#ff0000", "#aa0000"#Dist*, "#770000"
+                        , "#006600", "#00ff00", "#008800" # MoST*
+                        , "#420042", "#640064", "#960096", "#c800c8", "#f900f9"# MoST Rule
+                        , "#000088", "#0000ff", "#0000aa" # CC2
+                      ))
 
 ### 2.5.4 Create Images ####
 
@@ -443,7 +510,7 @@ gridExtra::grid.arrange(
 
 ## 3.2 Spelling Only ####
 
-HSSpellOnly.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:MoST_y2i))
+HSSpellOnly.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:MoST.y_i))
 
 # plot(HSSpellOnly.mclust)
 # 
@@ -453,17 +520,17 @@ HSSpellOnly.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:MoST_y2i))
 # Let's look at some plots.
 
 ## 3.2.1 Distribution Plots ####
-HSSpellOnly.VVV4 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST_y2i)
+HSSpellOnly.VVV4 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
                       , x=HSSpellOnly.mclust, modelNames="VVV", G=4)
 
 plot(HSSpellOnly.VVV4, what = "classification")
 # MoST _e items seem to be driving a lot here
 
-HSSpellOnly.EVE4 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST_y2i)
+HSSpellOnly.EVE4 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
                       , x=HSSpellOnly.mclust, modelNames="EVE", G=4)
 plot(HSSpellOnly.EVE4, what = "classification")
 
-HSSpellOnly.EVE5 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST_y2i)
+HSSpellOnly.EVE5 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
                       , x=HSSpellOnly.mclust, modelNames="EVE", G=5)
 plot(HSSpellOnly.EVE5, what = "classification")
 
@@ -624,7 +691,7 @@ summary(HSSpell.pca)
 
 ### 4.1.2 Spelling Only (no CC2) ####
 
-HSSpellOnly.pca = princomp(HSSpell.age %>% select(DiST.Irr:MoST_y2i))
+HSSpellOnly.pca = princomp(HSSpell.age %>% select(DiST.Irr:MoST.y_i))
 
 loadings(HSSpellOnly.pca)
 summary(HSSpellOnly.pca)
@@ -662,7 +729,7 @@ loadings(HSSpell.fa)
 
 ### 4.2.2 Spelling Only (no CC2) ####
 
-HSSpellOnly.fa = factanal(HSSpell.age %>% select(DiST.Irr:MoST_y2i), 2)
+HSSpellOnly.fa = factanal(HSSpell.age %>% select(DiST.Irr:MoST.y_i), 2)
 
 loadings(HSSpellOnly.fa)
 

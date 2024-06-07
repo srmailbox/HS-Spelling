@@ -82,7 +82,8 @@ MoST.responses = read_csv('hsspell_itemlevel.csv'
                        , skip = 0, na=c("NA", "NS.illegible")
                       ) %>% data.frame
 
-MoST.spell = MoST.responses %>% filter(!ID %in% exclIDs)
+# A9_226 has 12 of 28 datapoints missing due to illegibility.
+MoST.spell = MoST.responses %>% filter(!ID %in% c(exclIDs, "A9_226"))
 # Columns will be taken from the Item set in the scoring.
 
 ### 2.3.1 MoST Scoring (RegEx) ####
@@ -259,7 +260,6 @@ mostCorrect = mostScores %>%
       arrange(Item) %>% drop_na()
   })
 
-#colnames(MoST.spell)[3:ncol(MoST.spell)]=MoST.scoring$Item
 
 #### 2.3.2.1 Reshape and score the Response data ####
 
@@ -285,27 +285,28 @@ mostWide = merge(
   mostLong %>% group_by(ID, Grade) %>% 
     summarise( 
       # missing values are treated as incorrect here
-      fullWord = sum(FullWordAcc, na.rm=T)
-      , baseWord = sum(BaseAcc, na.rm=T)
-      , suffix=sum(SuffixAcc, na.rm=T)
-      , rule_total=sum(RuleAcc, na.rm=T)
+      MoST.full = sum(FullWordAcc, na.rm=T)
+      , MoST.base = sum(BaseAcc, na.rm=T)
+      , MoST.suffix=sum(SuffixAcc, na.rm=T)
+      , MoST.rule_total=sum(RuleAcc, na.rm=T)
       # This set adjusts for missing values by "scaling up" to the correct
-      , fullWord.sc = mean(FullWordAcc, na.rm=T)*28
-      , baseWord.sc = mean(BaseAcc, na.rm=T)*28
-      , suffix.sc=mean(SuffixAcc, na.rm=T)*28
-      , rule_total.sc=mean(RuleAcc & !is.na(Rule), na.rm=T)*17
+      , MoST.full.sc = mean(FullWordAcc, na.rm=T)*28
+      , MoST.base.sc = mean(BaseAcc, na.rm=T)*28
+      , MoST.suffix.sc=mean(SuffixAcc, na.rm=T)*28
+      , MoST.rule_total.sc=mean(RuleAcc & !is.na(Rule), na.rm=T)*17
       # A count of spellings provided
-      , notNA = sum(!is.na(spelling))) %>% 
+      , MoST.notNA = sum(!is.na(spelling))) %>% 
     ungroup
   # Separate subtotals for different rules
   , mostLong %>% 
     filter(!is.na(Rule)) %>% 
     group_by(ID, Grade, Rule) %>% 
-    summarise(rule=sum(RuleAcc, na.rm=T), notNA=sum(!is.na(spelling))) %>% 
+    summarise(MoST=sum(RuleAcc, na.rm=T), notNA=sum(!is.na(spelling))) %>% 
     ungroup %>% 
     pivot_wider(id_cols=c(ID, Grade), names_from=Rule
-                , values_from=c(rule, notNA)
-                # , names_prefix="rule_"
+                , values_from=c(MoST, notNA)
+                # , names_prefix="MoST."
+                , names_sep="."
                 )
 )
 
@@ -315,8 +316,7 @@ mostWide = merge(
 
 # I think we have to drop A9_226 - odd because they did well on the items that
 # could be scored. Seems like a student with a handwriting issue.
-# 
-mostWide = mostWide %>% filter(ID!="A9_226")
+# See import of data, where i remove this participant from the start
 
 ## 2.4 CC2-A ####
 
@@ -416,7 +416,7 @@ HSSpelling = demog %>%
   merge(LetPos %>% select(ID, starts_with("LetPos")), by="ID", all = T) %>% 
   merge(TOWRE %>% select(ID, starts_with("TOWRE")), by="ID", all = T) %>% 
   # merge(WIAT %>% select(ID, starts_with("WIAT")), by="ID", all = T) %>% 
-  filter(is.na(Excluded))
+  filter(is.na(Excluded)) %>% select(-Excluded)
 
 # 4.0 Reshaping DiST.* & MoST for IRT and CTT ####
 
@@ -443,13 +443,9 @@ DiSTn %>% filter(is.na(Acc)) %>% data.frame %>% arrange(Item)
 
 
 ## 4.3 MoST items ####
-MoSTl = MoST %>% 
-  select(-Gender, -D.O.Assessment, -troke, -grent, -Excluded...Serbian...Resolved) %>% 
+MoSTl = mostWide %>% 
+  mutate(across(ends_with("Acc"), ~ifelse(.x,)))
   pivot_longer(cols = !ID, names_to="Item", values_to = "Acc")
 head(MoSTl)
 summary(MoSTl)
 MoSTl %>% filter(is.na(Acc)) %>% arrange(Item) %>% data.frame
-
-# There are some unusual situations where an item is "unscorable"
-# e.g., A9_216 gets prining correct, but the prining_e change is "unscorable"
-
