@@ -12,7 +12,8 @@
 
 
 # 0. Setup ####
-if (!all(sapply(c("DiST.i", "DiST.n", "MoST", "HSSpelling"), exists))) source('HSSpelling.DataImport.R')
+if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
+  source('HSSpelling.DataImport.R')
 
 
 # 1.0 Clustering, Spelling + CC2 ####
