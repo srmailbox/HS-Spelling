@@ -24,6 +24,7 @@
 include(readxl)
 
 # 1.0 Demographic information about the students ####
+message("getting demographics...")
 demog = read_xlsx('High school data 2017 deidentified.xlsx', sheet="Master ")
 str(demog)
 colnames(demog)[8]="Excluded"
@@ -31,8 +32,11 @@ colnames(demog)[8]="Excluded"
 exclIDs = demog$ID[!is.na(demog$Excluded)]
 
 # 2.0 Import the data ####
+message("importing...")
 
 ## 2.1 DiST.i Irregular words ####
+message("         ... DiST.i")
+
 DiST.i = read_xlsx('High school data 2017 deidentified.xlsx', sheet="DiST-i-A"
                    , skip = 2, na = c("n/a", "illegible", "1*", "NS.missing"))
 # str(DiST.i)
@@ -44,6 +48,7 @@ DiST.i = DiST.i %>% filter(!ID %in% exclIDs) %>%
 # str(DiST.i)
 
 ## 2.2 DiST.n Nonword word spelling ####
+message("         ... DiST.n")
 # DiST.n has lots of alternative "correct" responses for many items and these
 # are coded in an odd way.
 DiST.n = read_xlsx('High school data 2017 deidentified.xlsx', sheet="DiST-n-A"
@@ -65,6 +70,7 @@ for (i in 6:61)
 DiST.n = DiST.n %>% filter(!ID %in% exclIDs) %>% rename(DiST.Non=totalAcc)
 
 ## 2.3 MoST Morphological nonwords test ####
+message("         ... MoST...")
 
 # The MoST has a more complex design - each item falls into a morphological 
 # category but also many items have both an "overall" accuracy, and an accuracy 
@@ -77,7 +83,7 @@ DiST.n = DiST.n %>% filter(!ID %in% exclIDs) %>% rename(DiST.Non=totalAcc)
 # proncily would produce 0, 1
 # pronkily would produce 1, 1
 # proncyly would produce 0, 0
-
+message("                 ... responses")
 MoST.responses = read_csv('hsspell_itemlevel.csv'
                        , skip = 0, na=c("NA", "NS.illegible")
                       ) %>% data.frame
@@ -87,6 +93,7 @@ MoST.spell = MoST.responses %>% filter(!ID %in% c(exclIDs, "A9_226"))
 # Columns will be taken from the Item set in the scoring.
 
 ### 2.3.1 MoST Scoring (RegEx) ####
+# message("                 ... scoring (regex)")
 
 # Used regular expressions to score spellings for accuracy along all dimensions.
 # This has run it's course, and we now have a masterlist of correct/incorrect
@@ -225,6 +232,8 @@ MoST.spell = MoST.responses %>% filter(!ID %in% c(exclIDs, "A9_226"))
 #           , sep=";", row.names=F)
 
 ### 2.3.2 MoST Scoring - List-based ####
+message("                 ... correct spellings")
+
 # Reads coding results from an excel file. The excel file contains lists of
 # correct and incorrect spellings to each item, using 4 different coding schemes
 # a) fullword
@@ -235,7 +244,7 @@ MoST.spell = MoST.responses %>% filter(!ID %in% c(exclIDs, "A9_226"))
 MoSTScoringSrc = "MoST.CodingResults_v3.xlsx"
 MoSTScoring = as.list(grep("^MoST\\..*\\.Responses$",readxl::excel_sheets(MoSTScoringSrc)
                                  , value=T))
-MoSTNames = gsub("^MoST\\.(.*)\\.Responses$", "\\1", unlist(MoSTScoringSheets))
+MoSTNames = gsub("^MoST\\.(.*)\\.Responses$", "\\1", unlist(MoSTScoring))
 
 MoSTItems = read_excel("Information for item level scoring.xlsx"
                        , sheet="Regexes", range="B1:E29")
@@ -262,6 +271,7 @@ mostCorrect = mostScores %>%
 
 
 #### 2.3.2.1 Reshape and score the Response data ####
+message("                 ... scoring responses")
 
 mostLong = MoST.spell %>%
   pivot_longer(cols=-(2:1), names_to = "Item", values_to="spelling") %>%
@@ -280,6 +290,7 @@ mostLong = MoST.spell %>%
   as_tibble
 
 ### 2.3.2.2 Get some total scores ####
+message("                 ... calculating subscales")
 
 mostWide = merge(
   mostLong %>% group_by(ID, Grade) %>% 
@@ -319,6 +330,7 @@ mostWide = merge(
 # See import of data, where i remove this participant from the start
 
 ## 2.4 CC2-A ####
+message("         ... CC2-A")
 
 CC2A.row1 = read_xlsx('High school data 2017 deidentified.xlsx'
                           , sheet="CC2-A_FINAL", range="A1:FY1"
@@ -362,6 +374,7 @@ CC2A = CC2A.wide %>% select(ID, ends_with("Raw")) %>%
          , CC2.Non = Nonwords.Raw)
 
 ## 2.5 LetPos ####
+message("         ... LetPos")
 # There's not much data here, but we'll bring it in anyway.
 LetPos.colnames = read_xlsx('High school data 2017 deidentified.xlsx'
                       , sheet="LetPos", range="A1:F1"
@@ -378,6 +391,7 @@ LetPos = read_xlsx(
   data.frame
 
 ## 2.6 TOWRE ####
+message("         ... TOWRE")
 TOWRE.colnames = read_xlsx('High school data 2017 deidentified.xlsx'
                             , sheet="TOWRE", range="A1:L1"
                             , skip = 0) %>% #select(-5) %>% 
@@ -394,6 +408,8 @@ TOWRE = read_xlsx(
   data.frame
 
 ## 2.7 WIAT ####
+message("         ... WIAT")
+
 # There are so few WIAT's, and it's confusing data, so I will ignore it.
 # WIAT = read_xlsx('High school data 2017 deidentified.xlsx'
 #                            , sheet="WiAT", range="g3:M26"
@@ -406,6 +422,7 @@ TOWRE = read_xlsx(
 #          ) %>% slice(-12) %>% data.frame
 
 # 3.0 Merge all scores and demog by ID ####
+message("merging scores...")
 
 HSSpelling = demog %>% 
   merge(DiST.i %>% select(ID, DiST.Irr), by="ID", all = T) %>% 
@@ -419,7 +436,7 @@ HSSpelling = demog %>%
   filter(is.na(Excluded)) %>% select(-Excluded)
 
 # 4.0 Reshaping DiST.* & MoST for IRT and CTT ####
-
+message("4.0 Reshaping DiST.* & MoST for IRT and CTT...")
 ## 4.1 Irregular items ####
 
 DiSTi = DiST.i %>% 
@@ -444,7 +461,7 @@ DiSTn %>% filter(is.na(Acc)) %>% data.frame %>% arrange(Item)
 
 ## 4.3 MoST items ####
 MoSTl = mostWide %>% 
-  mutate(across(ends_with("Acc"), ~ifelse(.x,)))
+  mutate(across(ends_with("Acc"), ~ifelse(.x,))) %>% 
   pivot_longer(cols = !ID, names_to="Item", values_to = "Acc")
 head(MoSTl)
 summary(MoSTl)
