@@ -8,14 +8,20 @@
 # Created: 2023/11/08
 # Author: Serje Robidoux
 # CHANGELOG:
-#
+# 2024-06-09: Updated for new MoST scoring schemes.
 
 
 # 0. Setup ####
 if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
   source('HSSpelling.DataImport.R')
 
+### Note that MoST.base and MoST.rule both correlate with MoST.full at .9.
+# they only correlate with each other at .75
 
+# Should this analysis exclude MoST.full.
+# Hm.
+cor(HSSpell.age$MoST.base+HSSpell.age$MoST.rule_total, HSSpell.age$MoST.full)
+cor(HSSPell.age %>% select(Mo, Most.base, Most.suffix, Most.rule))
 # 1.0 Clustering, Spelling + CC2 ####
 
 ## 1.1 Set up dataset for clustering ####
@@ -77,9 +83,7 @@ HSSpell.age$hclust.wardD2 = cutree(HSSpell.hclst$ward.D2, 6)
 HSSpell.age$hclust.mcquitty = cutree(HSSpell.hclst$mcquitty, 2)
 
 ## 1.5 Plot results ####
-
 # colnames(HSSpell.clst)
-
 ## 1.5.1 Complete linkage: 4 grps ####
 cmplt.ggp = HSSpell.age %>% 
   select(AgeM:CC2.Non, hclust.cmplt) %>% 
@@ -434,251 +438,226 @@ include(mclust)
 
 ## 3.1 Spelling+Reading ####
 
-HSSpell.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:CC2.Non))
+HSSpell.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:CC2.Non)
+                           , modelNames = mclust.options("emModelNames")[1:7])
 
-# plot(HSSpell.mclust)
-# Technically VVE,5 is the best, but it shows a strong spike from ,4 to ,5 and 
-# drop again to ,6, so not sure that's the best.
-# VVV,4 ,5 ,6 are pretty similar, as is EVE 5
+plot(HSSpell.mclust)
+# For some reason, models "EEE" "VEE" "EVE" "VVE" "EEV" "VEV" "EVV" "VVV" are 
+# all identical - 1 group, same BIC. I suspect it's something about too many 
+# free parameters for too many variables with not enough participants so I have
+# excluded those.
 
-# Feels like LPA really wants to say "5"
+# I think the VEI and VVI models, with around 6 groups are the most parsimonious
+# but best choices 
+
 # Let's look at some plots.
-
-## 3.1.1 Distribution Plots ####
-HSSpell.VVE5 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
-                      , x=HSSpell.mclust, modelNames="VVE", G=5)
-
-plot(HSSpell.VVE5, what = "classification")
-# MoST _e items seem to be driving a lot here
-
-HSSpell.VVV5 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
-                      , x=HSSpell.mclust, modelNames="VVV", G=5)
-plot(HSSpell.VVV5, what = "classification")
-
-HSSpell.VVV4 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
-                      , x=HSSpell.mclust, modelNames="VVV", G=4)
-plot(HSSpell.VVV4, what = "classification")
+VarLvls = c("AgeM", "MoST.full", "MoST.base", "MoST.suffix", "MoST.rule_total"
+            , "MoST.dbl_cons", "MoST.drop_e", "MoST.f_v", "MoST.y_i"
+            , "DiST.Irr", "DiST.Non", "CC2.Irr", "CC2.Non", "CC2.Reg")
 
 
-## 3.1.2 Means plots ####
+### 3.1.1 Distribution Plots ####
 
-gridExtra::grid.arrange(
-  HSSpell.VVV5$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X5, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVV 5", "Age-adjusted")+
-    guides(fill="none")+
-    scale_fill_manual(
-      values=c("#0000ff", "#0000aa", "#000088" 
-               , "#ff0000", "#aa0000"
-               , "#006600", "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  , HSSpell.VVV4$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X4, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVV 4", "Age-adjusted")+
-    guides(fill="none")+
-    scale_fill_manual(
-      values=c("#0000ff", "#0000aa", "#000088" 
-               , "#ff0000", "#aa0000"
-               , "#006600", "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
+#### 3.1.1.1 EEE 1 ####
 
-  , HSSpell.VVE5$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X5, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVE 5", "Age-adjusted")+
-    scale_fill_manual(
-      values=c("#0000ff", "#0000aa", "#000088" 
-               , "#ff0000", "#aa0000"
-               , "#006600", "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  , layout_matrix=matrix(c(1,1,2,2,NA,3,3,NA), nrow=2, byrow=T)
-)
+### This plot is completely pointless, since with only 1 group, all scores must
+# be the mean score of0, and all SE's must be equal to basically 1/sqrt(403)
+
+
+#### 3.1.1.2 VEI 6 ####
+HSSpell.VEI6 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
+                      , x=HSSpell.mclust, modelNames="VEI", G=6)
+
+# plot(HSSpell.VEI6, what = "classification")
+# There are really too many variables to use the matrix plotting of scatter
+# plots. Instead, I'm going to generate some barplots.
+
+plotDat.VEI6 = merge(
+  HSSpell.VEI6$parameters$mean %>% data.frame # means
+  , (apply(HSSpell.VEI6$parameters$variance$sigma,3, diag) %>% data.frame %>% 
+    sqrt)/sqrt(table(HSSpell.VEI6$classification))
+  , by=0, suffixes=c(".Mean", ".SE")
+) %>% rename(Var = Row.names) %>% data.frame
+
+plotDat.VEI6 %>% data.frame %>% 
+  pivot_longer(-Var, values_to="Value", names_to=c("Group", "Measure")
+               , names_sep="\\.") %>% 
+  pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
+  mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
+  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
+  geom_col(position="dodge")+
+  geom_errorbar(position="dodge")+
+  geom_vline(xintercept = 1:5+.5, col="grey")+
+  annotate(geom="label", x=1:6, y=1.75
+           , label=paste("N:", table(HSSpell.VEI6$classification)))+
+  theme_minimal()+theme(panel.grid.major.x=element_blank())+
+  scale_fill_manual(values=
+                        c(#"darkgrey", # Age
+                          "#006600", "#009900", "#00bb00", "#00ff00" # MoST*
+                          , "#640064", "#960096", "#c800c8", "#f900f9"# MoST subrules
+                          , "#aa0000", "#ff0000" #Dist*, "#770000"
+                          , "#000066", "#0000aa", "#0000ff" # CC2
+                        ))+
+  ggtitle("LPA classificiations", subtitle="VEI, 6 groups")+
+  ylab("Mean and SE's (sample z-scores)")
+
+
+#### 3.1.1.3 VVI 6 ####
+HSSpell.VVI6 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
+                      , x=HSSpell.mclust, modelNames="VVI", G=6)
+
+# plot(HSSpell.VVI6, what = "classification")
+# There are really too many variables to use the matrix plotting of scatter
+# plots. Instead, I'm going to generate some barplots.
+
+plotDat.VVI6 = merge(
+  HSSpell.VVI6$parameters$mean %>% data.frame # means
+  , (apply(HSSpell.VVI6$parameters$variance$sigma,3, diag) %>% data.frame %>% 
+       sqrt)/sqrt(table(HSSpell.VVI6$classification))
+  , by=0, suffixes=c(".Mean", ".SE")
+) %>% rename(Var = Row.names) %>% data.frame
+
+plotDat.VVI6 %>% data.frame %>% 
+  pivot_longer(-Var, values_to="Value", names_to=c("Group", "Measure")
+               , names_sep="\\.") %>% 
+  pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
+  mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
+  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
+  geom_col(position="dodge")+
+  geom_errorbar(position="dodge")+
+  geom_vline(xintercept = 1:5+.5, col="grey")+
+  theme_minimal()+theme(panel.grid.major.x=element_blank())+
+  scale_fill_manual(values=
+                      c(#"darkgrey", # Age
+                        "#006600", "#009900", "#00bb00", "#00ff00" # MoST*
+                        , "#640064", "#960096", "#c800c8", "#f900f9"# MoST subrules
+                        , "#aa0000", "#ff0000" #Dist*, "#770000"
+                        , "#000066", "#0000aa", "#0000ff" # CC2
+                      ))+
+  annotate(geom="label", x=1:6, y=1.75
+           , label=paste("N:", table(HSSpell.VVI6$classification)))+
+  ggtitle("LPA classificiations", subtitle="VVI, 6 groups")+
+  ylab("Mean and SE's (sample z-scores)")
+
 
 ## 3.2 Spelling Only ####
 
-HSSpellOnly.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:MoST.y_i))
+HSSpellOnly.mclust = mclustBIC(HSSpell.age %>% 
+                             select(starts_with("DiST"), starts_with("MoST"))
+                           , modelNames = mclust.options("emModelNames")[1:6]
+                           )
 
-# plot(HSSpellOnly.mclust)
-# 
+plot(HSSpellOnly.mclust)
+# For the most complex models ("EEE" "VEE" "EVE" "VVE" "EEV" "VEV" "EVV" "VVV")
+# there are too many free parameters to fit more than 1 group, which is 
+# trivially uninteresting.
 
-# Feels like LPA really wants to say "4" in this case, which is odd since
-# the reading data didn't seem to define much in the previous versions
+# As in the full data, the VEI and VVI models with around 6 groups are the most 
+# parsimonious but best choices. more groups produce trivial differences.
+
 # Let's look at some plots.
 
-## 3.2.1 Distribution Plots ####
-HSSpellOnly.VVV4 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
-                      , x=HSSpellOnly.mclust, modelNames="VVV", G=4)
+### 3.2.1 Distribution Plots ####
 
-plot(HSSpellOnly.VVV4, what = "classification")
-# MoST _e items seem to be driving a lot here
+#### 3.2.1.1 EEE 1 ####
 
-HSSpellOnly.EVE4 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
-                      , x=HSSpellOnly.mclust, modelNames="EVE", G=4)
-plot(HSSpellOnly.EVE4, what = "classification")
-
-HSSpellOnly.EVE5 = Mclust(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
-                      , x=HSSpellOnly.mclust, modelNames="EVE", G=5)
-plot(HSSpellOnly.EVE5, what = "classification")
+### This plot is completely pointless, since with only 1 group, all scores must
+# be the mean score of0, and all SE's must be equal to basically 1/sqrt(403)
 
 
-## 3.2.2 Means plots ####
+#### 3.2.1.2 VEI 6 ####
+HSSpellOnly.VEI6 = Mclust(HSSpell.age %>% 
+                            select(starts_with("DiST"), starts_with("MoST"))
+                      , x=HSSpellOnly.mclust, modelNames="VEI", G=6)
 
-gridExtra::grid.arrange(
-  HSSpellOnly.VVV4$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X4, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVV 5", "Age-adjusted")+
-    guides(fill="none")+
-    scale_fill_manual(
-      values=c(#"#0000ff", "#0000aa", "#000088" 
-                "#ff0000", "#aa0000"
-               , "#006600", "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  , HSSpellOnly.EVE4$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X4, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVV 4", "Age-adjusted")+
-    guides(fill="none")+
-    scale_fill_manual(
-      values=c(#"#0000ff", "#0000aa", "#000088" 
-                "#ff0000", "#aa0000"
-               , "#006600", "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  
-  , HSSpellOnly.EVE5$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X5, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVE 5", "Age-adjusted")+
-    scale_fill_manual(
-      values=c(#"#0000ff", "#0000aa", "#000088" 
-                "#ff0000", "#aa0000"
-               , "#006600", "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  , layout_matrix=matrix(c(1,1,2,2,NA,3,3,NA), nrow=2, byrow=T)
-)
+# plot(HSSpellOnly.VEI6, what = "classification")
+# There are really too many variables to use the matrix plotting of scatter
+# plots. Instead, I'm going to generate some barplots.
 
-## 3.3 Spelling + Reading, no Subscales ####
+plotDat.VEI6 = merge(
+  HSSpellOnly.VEI6$parameters$mean %>% data.frame # means
+  , (apply(HSSpellOnly.VEI6$parameters$variance$sigma,3, diag) %>% data.frame %>% 
+       sqrt)/sqrt(table(HSSpellOnly.VEI6$classification))
+  , by=0, suffixes=c(".Mean", ".SE")
+) %>% rename(Var = Row.names) %>% data.frame
 
-HSSpellnoSubs.mclust = mclustBIC(HSSpell.age %>% 
-                                   select(starts_with("DiST")
-                                          , starts_with("CC2")
-                                          , MoST_FullItem))
-
-# plot(HSSpellnoSubs.mclust)
-# 
-
-# Getting rid of those subscales really changes the results... The groups
-# are far less distinctive.
+plotDat.VEI6 %>% data.frame %>% 
+  pivot_longer(-Var, values_to="Value", names_to=c("Group", "Measure")
+               , names_sep="\\.") %>% 
+  pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
+  mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
+  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
+  geom_col(position="dodge")+
+  geom_errorbar(position="dodge")+
+  geom_vline(xintercept = 1:5+.5, col="grey")+
+  annotate(geom="label", x=1:6, y=1.75
+           , label=paste("N:", table(HSSpellOnly.VEI6$classification)))+
+  theme_minimal()+theme(panel.grid.major.x=element_blank())+
+  scale_fill_manual(values=
+                      c(#"darkgrey", # Age
+                        "#006600", "#009900", "#00bb00", "#00ff00" # MoST*
+                        , "#640064", "#960096", "#c800c8", "#f900f9"# MoST subrules
+                        , "#aa0000", "#ff0000" #Dist*, "#770000"
+                        , "#000066", "#0000aa", "#0000ff" # CC2
+                      ))+
+  ggtitle("LPA classificiations (Spelling Measures Only)"
+          , subtitle="VEI, 6 groups")+
+  ylab("Mean and SE's (sample z-scores)")
 
 
-## 3.3.1 Distribution Plots ####
-HSSpellnoSubs.VEE3 = Mclust(HSSpell.age %>% 
-                              select(DiST.Irr:CC2.Non
-                                     , -starts_with("MoST")
-                                     , MoST_FullItem)
-                          , x=HSSpellnoSubs.mclust, modelNames="VEE", G=3)
+#### 3.2.1.3 VVI 6 ####
+HSSpellOnly.VVI6 = Mclust(HSSpell.age %>% 
+                            select(starts_with("DiST"), starts_with("MoST"))
+                      , x=HSSpellOnly.mclust, modelNames="VVI", G=6)
 
-plot(HSSpellnoSubs.VEE3, what = "classification")
-# MoST _e items seem to be driving a lot here
+# plot(HSSpellOnly.VVI6, what = "classification")
+# There are really too many variables to use the matrix plotting of scatter
+# plots. Instead, I'm going to generate some barplots.
 
-HSSpellnoSubs.VEE4 = Mclust(HSSpell.age %>% 
-                              select(DiST.Irr:CC2.Non
-                                     , -starts_with("MoST")
-                                     , MoST_FullItem)
-                            , x=HSSpellnoSubs.mclust, modelNames="VEE", G=4)
+plotDat.VVI6 = merge(
+  HSSpellOnly.VVI6$parameters$mean %>% data.frame # means
+  , (apply(HSSpellOnly.VVI6$parameters$variance$sigma,3, diag) %>% data.frame %>% 
+       sqrt)/sqrt(table(HSSpellOnly.VVI6$classification))
+  , by=0, suffixes=c(".Mean", ".SE")
+) %>% rename(Var = Row.names) %>% data.frame
 
-plot(HSSpellnoSubs.VEE4, what = "classification")
-
-HSSpellnoSubs.VEE5 = Mclust(HSSpell.age %>% 
-                              select(DiST.Irr:CC2.Non
-                                     , -starts_with("MoST")
-                                     , MoST_FullItem)
-                            , x=HSSpellnoSubs.mclust, modelNames="VEE", G=5)
-
-plot(HSSpellnoSubs.VEE5, what = "classification")
-
-
-## 3.3.2 Means plots ####
-
-gridExtra::grid.arrange(
-  HSSpellnoSubs.VEE3$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X3, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVV 5", "Age-adjusted")+
-    guides(fill="none")+
-    scale_fill_manual(
-      values=c("#0000ff", "#0000aa", "#000088" 
-        , "#ff0000", "#aa0000"
-        , "#00ff00"#, "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  , HSSpellnoSubs.VEE4$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X4, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVV 4", "Age-adjusted")+
-    guides(fill="none")+
-    scale_fill_manual(
-      values=c("#0000ff", "#0000aa", "#000088" 
-             , "#ff0000", "#aa0000"
-             , "#00ff00"#, "#008800", "#00aa00", "#00ff00", "#00cc00"
-    )
-  )
-
-  , HSSpellnoSubs.VEE5$parameters$mean %>% 
-    data.frame %>% 
-    mutate(Measure = rownames(.)) %>% 
-    pivot_longer(X1:X5, names_to="Group", values_to = "Mean") %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Measure))+
-    geom_col(position=position_dodge())+
-    ggtitle("LPA - Spelling and Reading, VVE 5", "Age-adjusted")+
-    scale_fill_manual(
-      values=c("#0000ff", "#0000aa", "#000088" 
-               , "#ff0000", "#aa0000"
-               , "#00ff00"#, "#008800", "#00aa00", "#00ff00", "#00cc00"
-      )
-    )
-  , layout_matrix=matrix(c(1,1,2,2,NA,3,3,NA), nrow=2, byrow=T)
-)
+plotDat.VVI6 %>% data.frame %>% 
+  pivot_longer(-Var, values_to="Value", names_to=c("Group", "Measure")
+               , names_sep="\\.") %>% 
+  pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
+  mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
+  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
+  geom_col(position="dodge")+
+  geom_errorbar(position="dodge")+
+  geom_vline(xintercept = 1:5+.5, col="grey")+
+  theme_minimal()+theme(panel.grid.major.x=element_blank())+
+  scale_fill_manual(values=
+                      c(#"darkgrey", # Age
+                        "#006600", "#009900", "#00bb00", "#00ff00" # MoST*
+                        , "#640064", "#960096", "#c800c8", "#f900f9"# MoST subrules
+                        , "#aa0000", "#ff0000" #Dist*, "#770000"
+                        , "#000066", "#0000aa", "#0000ff" # CC2
+                      ))+
+  annotate(geom="label", x=1:6, y=1.75
+           , label=paste("N:", table(HSSpellOnly.VVI6$classification)))+
+  ggtitle("LPA classificiations (Spelling Measures Only)"
+          , subtitle="VVI, 6 groups")+
+  ylab("Mean and SE's (sample z-scores)")
 
 # 4.0 PCA & FA ####
 
 ## 4.1 PCA ####
+# Note that rule_total is, by definition, the sum of the subrules. So we should
+# only every use rule_total, or the sub_rules.
 
 ### 4.1.1 Reading + Spelling ####
 
-HSSpell.pca = princomp(HSSpell.age %>% select(DiST.Irr:CC2.Non))
+HSSpell.pca = princomp(HSSpell.age %>% select(DiST.Irr:CC2.Non
+                                              , -MoST.rule_total))
 
 loadings(HSSpell.pca)
 summary(HSSpell.pca)
@@ -691,7 +670,8 @@ summary(HSSpell.pca)
 
 ### 4.1.2 Spelling Only (no CC2) ####
 
-HSSpellOnly.pca = princomp(HSSpell.age %>% select(DiST.Irr:MoST.y_i))
+HSSpellOnly.pca = princomp(HSSpell.age %>% select(DiST.Irr:MoST.y_i
+                                                  , -MoST.rule_total))
 
 loadings(HSSpellOnly.pca)
 summary(HSSpellOnly.pca)
@@ -703,7 +683,7 @@ summary(HSSpellOnly.pca)
 
 HSSpellnoSubs.pca = princomp(HSSpell.age %>% select(starts_with("DiST")
                                                     , starts_with("CC2")
-                                                    , MoST_FullItem))
+                                                    , MoST.full))
 
 loadings(HSSpellnoSubs.pca)
 summary(HSSpellnoSubs.pca)
@@ -714,18 +694,43 @@ summary(HSSpellnoSubs.pca)
 
 
 ## 4.2 Factor Analysis ####
+# The new coding scheme is making factor analysis very difficult.
+# First I'll go with just the rule_total, no sub rules. (f_v, etc.)
 
 ### 4.2.1 Reading + Spelling ####
 
-HSSpell.fa = factanal(HSSpell.age %>% select(DiST.Irr:CC2.Non), 3)
+HSSpell.fa = fa(HSSpell.age %>% select(DiST.Irr:CC2.Non, -MoST.dbl_cons
+                                       , -MoST.f_v, -MoST.y_i, -MoST.drop_e
+                                       , -MoST.full)
+                , nfactors=4
+                      , rotate = "oblimin")
 
 
 loadings(HSSpell.fa)
 
-# 3 factors,
-# 1: mostly CC2 with a bit of spelling, but not very cleanly
-# 2: Irregs emphasised (both DiST and CC2, but with a few other)
-# 3:  Nonword Spelling, but again, not very clean
+# 4 factors, in order of Prop Var
+# MR3: Mostly the MoST suffix scores (rule + suffix)
+# MR1: Reading, with an emphasis on Words (mostly Regs)
+# MR4: Irreg spelling.
+# MR2: Nonword Spelling, mostly DiST.
+
+# For MR2, notice that I have removed the MOST.fullword spelling here due to
+# extremely high collinearity with base and rule subscores.
+
+#### 4.2.1.1 ... remove rule_total, and use sub_rules ####
+HSSpell.fa = fa(HSSpell.age %>% select(DiST.Irr:CC2.Non, -MoST.rule_total
+                                       , -MoST.full)
+                , nfactors=5
+                , rotate = "oblimin")
+
+
+loadings(HSSpell.fa)
+# 5 factors, in order of Prop Var (the last is really not doing much)
+# MR1: Reading, with an emphasis on Words (mostly Regs)
+# MR3: MoST.base+ a couple of rules.
+# MR5: Word spelling (DiST.Irr), + Irreg Reading (Orthographic representations?)
+# MR4: MoST suffixes, ignoring rules.
+# MR2: (not a great factor) drop_e rule.
 
 ### 4.2.2 Spelling Only (no CC2) ####
 
@@ -742,7 +747,24 @@ loadings(HSSpellOnly.fa)
 
 HSSpellnoSubs.fa = factanal(HSSpell.age %>% 
                               select(starts_with("DiST"), starts_with("CC2")
-                                     , MoST_FullItem), 3)
+                                     , MoST.full), 3)
+
+loadings(HSSpellnoSubs.fa)
+
+# 3 factors here (max possible)
+# 1: somewhat biased towards reading scores, but really a general skill
+# 2: nonword spelling
+# 3: Irregs (CC2.Irr, DiST.Irr, and CC2.Reg - which is always unclear)
+
+
+### 4.2.4 Remove MoST.full ####
+# MoST.full is highly correlated with base word accuracy, rule accuracy, and
+# particularly the combination of base words and rules.
+# So let's remove it, and see if we get something interesting.
+
+HSSpellnoMoSTfull.fa = factanal(HSSpell.age %>% 
+                              select(starts_with("DiST"), starts_with("CC2")
+                                     , starts_with("MoST"), -MoST.rule_total), 1)
 
 loadings(HSSpellnoSubs.fa)
 
