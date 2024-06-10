@@ -20,6 +20,7 @@
 #              actual spellings produced for the MoST.
 # 2024/06/07 - redoing the MoST scoring using a finalised list of correct
 #              correct responses for each item (and accuracy type)
+# 2024/06/10 - remove "grindles" and "stomming"(?)
 
 include(readxl)
 
@@ -89,7 +90,8 @@ MoST.responses = read_csv('hsspell_itemlevel.csv'
                       ) %>% data.frame
 
 # A9_226 has 12 of 28 datapoints missing due to illegibility.
-MoST.spell = MoST.responses %>% filter(!ID %in% c(exclIDs, "A9_226"))
+MoST.spell = MoST.responses %>% filter(!ID %in% c(exclIDs, "A9_226")) %>% 
+  select(-grindles, -stomming)
 # Columns will be taken from the Item set in the scoring.
 
 ### 2.3.1 MoST Scoring (RegEx) ####
@@ -463,6 +465,6 @@ DiSTn %>% filter(is.na(Acc)) %>% data.frame %>% arrange(Item)
 MoSTl = mostWide %>% 
   mutate(across(ends_with("Acc"), ~ifelse(.x,))) %>% 
   pivot_longer(cols = !ID, names_to="Item", values_to = "Acc")
-head(MoSTl)
-summary(MoSTl)
-MoSTl %>% filter(is.na(Acc)) %>% arrange(Item) %>% data.frame
+# head(MoSTl)
+# summary(MoSTl)
+# MoSTl %>% filter(is.na(Acc)) %>% arrange(Item) %>% data.frame

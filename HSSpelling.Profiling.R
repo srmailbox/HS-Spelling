@@ -20,8 +20,9 @@ if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists)))
 
 # Should this analysis exclude MoST.full.
 # Hm.
-cor(HSSpell.age$MoST.base+HSSpell.age$MoST.rule_total, HSSpell.age$MoST.full)
-cor(HSSPell.age %>% select(Mo, Most.base, Most.suffix, Most.rule))
+# cor(HSSpell.age$MoST.base+HSSpell.age$MoST.rule_total, HSSpell.age$MoST.full)
+# cor(HSSpell.age %>% select(Mo, Most.base, Most.suffix, Most.rule))
+
 # 1.0 Clustering, Spelling + CC2 ####
 
 ## 1.1 Set up dataset for clustering ####
@@ -283,7 +284,7 @@ HSSpellOnly.hclst = lapply(clst.methods
 
 ## 2.4 Look at some options ####
 
-table(cutree(HSSpellOnly.hclst$mcquitty, 4))
+table(cutree(HSSpellOnly.hclst$mcquitty, 3))
 ## Looks like complete, ward D & D2 are all producing reasonable clusters. 
 # Complete produces 4 (one small)
 # Ward D  produces 8 (one small)
@@ -293,7 +294,7 @@ table(cutree(HSSpellOnly.hclst$mcquitty, 4))
 HSSpell.age$hclust.cmplt.SpellOnly = cutree(HSSpellOnly.hclst$complete, 4)
 HSSpell.age$hclust.wardD.SpellOnly = cutree(HSSpellOnly.hclst$ward.D, 8)
 HSSpell.age$hclust.wardD2.SpellOnly = cutree(HSSpellOnly.hclst$ward.D2, 9)
-HSSpell.age$hclust.mcquitty.SpellOnly = cutree(HSSpellOnly.hclst$mcquitty, 4)
+HSSpell.age$hclust.mcquitty.SpellOnly = cutree(HSSpellOnly.hclst$mcquitty, 3)
 
 ## 2.5 Plot results ####
 
@@ -439,7 +440,7 @@ include(mclust)
 ## 3.1 Spelling+Reading ####
 
 HSSpell.mclust = mclustBIC(HSSpell.age %>% select(DiST.Irr:CC2.Non)
-                           , modelNames = mclust.options("emModelNames")[1:7])
+                           , modelNames = mclust.options("emModelNames")[1:6])
 
 plot(HSSpell.mclust)
 # For some reason, models "EEE" "VEE" "EVE" "VVE" "EEV" "VEV" "EVV" "VVV" are 
@@ -447,7 +448,7 @@ plot(HSSpell.mclust)
 # free parameters for too many variables with not enough participants so I have
 # excluded those.
 
-# I think the VEI and VVI models, with around 6 groups are the most parsimonious
+# I think the VEI and VVI models, with around 7 groups are the most parsimonious
 # but best choices 
 
 # Let's look at some plots.
@@ -464,22 +465,22 @@ VarLvls = c("AgeM", "MoST.full", "MoST.base", "MoST.suffix", "MoST.rule_total"
 # be the mean score of0, and all SE's must be equal to basically 1/sqrt(403)
 
 
-#### 3.1.1.2 VEI 6 ####
-HSSpell.VEI6 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
-                      , x=HSSpell.mclust, modelNames="VEI", G=6)
+#### 3.1.1.2 VEI 7 ####
+HSSpell.VEI7 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
+                      , x=HSSpell.mclust, modelNames="VEI", G=7)
 
 # plot(HSSpell.VEI6, what = "classification")
 # There are really too many variables to use the matrix plotting of scatter
 # plots. Instead, I'm going to generate some barplots.
 
-plotDat.VEI6 = merge(
-  HSSpell.VEI6$parameters$mean %>% data.frame # means
-  , (apply(HSSpell.VEI6$parameters$variance$sigma,3, diag) %>% data.frame %>% 
-    sqrt)/sqrt(table(HSSpell.VEI6$classification))
+plotDat.VEI7 = merge(
+  HSSpell.VEI7$parameters$mean %>% data.frame # means
+  , (apply(HSSpell.VEI7$parameters$variance$sigma,3, diag) %>% data.frame %>% 
+    sqrt)/sqrt(table(HSSpell.VEI7$classification))
   , by=0, suffixes=c(".Mean", ".SE")
 ) %>% rename(Var = Row.names) %>% data.frame
 
-plotDat.VEI6 %>% data.frame %>% 
+plotDat.VEI7 %>% data.frame %>% 
   pivot_longer(-Var, values_to="Value", names_to=c("Group", "Measure")
                , names_sep="\\.") %>% 
   pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
@@ -488,9 +489,9 @@ plotDat.VEI6 %>% data.frame %>%
   ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
   geom_col(position="dodge")+
   geom_errorbar(position="dodge")+
-  geom_vline(xintercept = 1:5+.5, col="grey")+
-  annotate(geom="label", x=1:6, y=1.75
-           , label=paste("N:", table(HSSpell.VEI6$classification)))+
+  geom_vline(xintercept = 1:6+.5, col="grey")+
+  annotate(geom="label", x=1:7, y=1.75
+           , label=paste("N:", table(HSSpell.VEI7$classification)))+
   theme_minimal()+theme(panel.grid.major.x=element_blank())+
   scale_fill_manual(values=
                         c(#"darkgrey", # Age
@@ -499,26 +500,26 @@ plotDat.VEI6 %>% data.frame %>%
                           , "#aa0000", "#ff0000" #Dist*, "#770000"
                           , "#000066", "#0000aa", "#0000ff" # CC2
                         ))+
-  ggtitle("LPA classificiations", subtitle="VEI, 6 groups")+
+  ggtitle("LPA classificiations", subtitle="VEI, 7 groups")+
   ylab("Mean and SE's (sample z-scores)")
 
 
-#### 3.1.1.3 VVI 6 ####
-HSSpell.VVI6 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
-                      , x=HSSpell.mclust, modelNames="VVI", G=6)
+#### 3.1.1.3 VVI 7 ####
+HSSpell.VVI7 = Mclust(HSSpell.age %>% select(DiST.Irr:CC2.Non)
+                      , x=HSSpell.mclust, modelNames="VVI", G=7)
 
 # plot(HSSpell.VVI6, what = "classification")
 # There are really too many variables to use the matrix plotting of scatter
 # plots. Instead, I'm going to generate some barplots.
 
-plotDat.VVI6 = merge(
-  HSSpell.VVI6$parameters$mean %>% data.frame # means
-  , (apply(HSSpell.VVI6$parameters$variance$sigma,3, diag) %>% data.frame %>% 
-       sqrt)/sqrt(table(HSSpell.VVI6$classification))
+plotDat.VVI7 = merge(
+  HSSpell.VVI7$parameters$mean %>% data.frame # means
+  , (apply(HSSpell.VVI7$parameters$variance$sigma,3, diag) %>% data.frame %>% 
+       sqrt)/sqrt(table(HSSpell.VVI7$classification))
   , by=0, suffixes=c(".Mean", ".SE")
 ) %>% rename(Var = Row.names) %>% data.frame
 
-plotDat.VVI6 %>% data.frame %>% 
+plotDat.VVI7 %>% data.frame %>% 
   pivot_longer(-Var, values_to="Value", names_to=c("Group", "Measure")
                , names_sep="\\.") %>% 
   pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
@@ -527,18 +528,18 @@ plotDat.VVI6 %>% data.frame %>%
   ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
   geom_col(position="dodge")+
   geom_errorbar(position="dodge")+
-  geom_vline(xintercept = 1:5+.5, col="grey")+
+  geom_vline(xintercept = 1:6+.5, col="grey")+
   theme_minimal()+theme(panel.grid.major.x=element_blank())+
   scale_fill_manual(values=
                       c(#"darkgrey", # Age
-                        "#006600", "#009900", "#00bb00", "#00ff00" # MoST*
-                        , "#640064", "#960096", "#c800c8", "#f900f9"# MoST subrules
+                        "#007700", "#009900", "#00bb00", "#00ff00" # MoST*
+                        , "#740074", "#970097", "#c800c8", "#f900f9"# MoST subrules
                         , "#aa0000", "#ff0000" #Dist*, "#770000"
-                        , "#000066", "#0000aa", "#0000ff" # CC2
+                        , "#000077", "#0000aa", "#0000ff" # CC2
                       ))+
-  annotate(geom="label", x=1:6, y=1.75
-           , label=paste("N:", table(HSSpell.VVI6$classification)))+
-  ggtitle("LPA classificiations", subtitle="VVI, 6 groups")+
+  annotate(geom="label", x=1:7, y=1.75
+           , label=paste("N:", table(HSSpell.VVI7$classification)))+
+  ggtitle("LPA classificiations", subtitle="VVI, 7 groups")+
   ylab("Mean and SE's (sample z-scores)")
 
 
