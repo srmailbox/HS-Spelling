@@ -12,7 +12,7 @@
 #
 
 # 0. Setup ####
-include(quantreg)
+# include(quantreg)
 if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
   source('HSSpelling.DataImport.R')
 
@@ -87,16 +87,16 @@ cor(partDat %>% data.frame %>% select(1:4)
 
 # 2.0 "Clinical" approach ####
 
-# Here we'll use QR to identify a "critical value" of the poorest 25%
+# Here we'll use QR to identify a "critical value" of the poorest 16%
 # (age adjusted) for each of the variables, and identify which kids are in that
 # category. Then we can look at contingency tables.
 
-## 2.1 Calculate .25 QR scores for each variable ####
+## 2.1 Calculate .16 QR scores for each variable ####
 
 mostQRs = by(mostComorbidity, mostComorbidity$Scale
              , FUN = 
                function(x) 
-                 data.frame(x, q25.age=predict(rq(Score~AgeM, x, tau=.25)))
+                 data.frame(x, q25.age=predict(rq(Score~AgeM, x, tau=.16)))
 )
 
 ### 2.1.1 reorganize into a wide ####
@@ -121,7 +121,8 @@ lowScores =
 # considering only kids who have the Disti, the distn and whichever Most 
 # is being considered
 lowScores %>% 
-  mutate(DiST = DiST.Irr | DiST.Non
+  mutate(DiST = #DiST.Irr | 
+           DiST.Non
          , MoST = MoST.full | MoST.base | MoST.suffix | MoST.rule_total
          , MoST.subs = MoST.base | MoST.suffix | MoST.rule_total) %>% 
   group_by(

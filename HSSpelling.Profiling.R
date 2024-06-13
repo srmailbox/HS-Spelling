@@ -12,9 +12,9 @@
 
 
 # 0. Setup ####
+include(psych)
 if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
   source('HSSpelling.DataImport.R')
-
 ### Note that MoST.base and MoST.rule both correlate with MoST.full at .9.
 # they only correlate with each other at .75
 
@@ -704,7 +704,7 @@ HSSpell.fa = fa(HSSpell.age %>% select(DiST.Irr:CC2.Non, -MoST.dbl_cons
                                        , -MoST.f_v, -MoST.y_i, -MoST.drop_e
                                        , -MoST.full)
                 , nfactors=4
-                      , rotate = "oblimin")
+                      , rotate = "promax")
 
 
 loadings(HSSpell.fa)
@@ -722,7 +722,7 @@ loadings(HSSpell.fa)
 HSSpell.fa = fa(HSSpell.age %>% select(DiST.Irr:CC2.Non, -MoST.rule_total
                                        , -MoST.full)
                 , nfactors=5
-                , rotate = "oblimin")
+                , rotate = "varimax")
 
 
 loadings(HSSpell.fa)
@@ -735,7 +735,8 @@ loadings(HSSpell.fa)
 
 ### 4.2.2 Spelling Only (no CC2) ####
 
-HSSpellOnly.fa = factanal(HSSpell.age %>% select(DiST.Irr:MoST.y_i), 2)
+HSSpellOnly.fa = fa(HSSpell.age %>% select(DiST.Irr:MoST.y_i)
+                    , nfactors=4, rotate="varimax")
 
 loadings(HSSpellOnly.fa)
 

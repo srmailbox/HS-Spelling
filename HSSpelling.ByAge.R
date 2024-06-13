@@ -12,6 +12,7 @@
 
 # 0. Setup ####
 include(quantreg)
+include(gridExtra)
 if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
   source('HSSpelling.DataImport.R')
 
@@ -51,7 +52,6 @@ ggplot(mostAge %>%
   theme_minimal()+
   xlab("Age in Yrs")+
   scale_x_continuous(breaks=10:18)
-  
   
 # Looks like full and base are pretty solid, suffix has a bit of a ceiling
 # effect, as does rule (though less pronounced)
@@ -107,6 +107,8 @@ mostQRs.plots = lapply(
 (QRggp.full = mostQRs.plots$MoST.full + 
   ggtitle("Full Word Quantile Regression"))
 
+### 2.1.1 do DiST.non ####
+
 ## 2.2 Base Word ####
 
 (QRggp.base = mostQRs.plots$MoST.base + 
@@ -123,7 +125,6 @@ mostQRs.plots = lapply(
   ggtitle("Rules Quantile Regression"))
 
 ## 2.5 All four together ####
-include(gridExtra)
 grid.arrange(
   QRggp.full, QRggp.base, QRggp.suffix, QRggp.rule
 )
