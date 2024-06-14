@@ -72,7 +72,7 @@ ggplot(HSSpelling %>% filter(AgeM>=120, AgeM<=18*12)
 
 partDat = HSSpelling %>% 
   select(AgeM, MoST.full, MoST.base, MoST.suffix, MoST.rule_total
-         , DiST.Irr, DiST.Non) %>% 
+         , DiST.Irr, DiST.Non, CC2.Reg, CC2.Irr, CC2.Non) %>% 
   drop_na() # This is a bit lazy, using only complete data.
 
 partDat = apply(partDat %>% select(-AgeM), 2
@@ -80,7 +80,7 @@ partDat = apply(partDat %>% select(-AgeM), 2
 
 # 1-
 cor(partDat %>% data.frame %>% select(1:4)
-    , partDat %>% data.frame %>% select(5:6))#^2
+    , partDat %>% data.frame %>% select(5:9))#^2
 
 # Shrinks things down a bit, but the same general pattern is there: less than
 # half the variance is shared between any two of these after adjust for age.
@@ -96,19 +96,19 @@ cor(partDat %>% data.frame %>% select(1:4)
 mostQRs = by(mostComorbidity, mostComorbidity$Scale
              , FUN = 
                function(x) 
-                 data.frame(x, q25.age=predict(rq(Score~AgeM, x, tau=.16)))
+                 data.frame(x, q16.age=predict(rq(Score~AgeM, x, tau=.16)))
 )
 
 ### 2.1.1 reorganize into a wide ####
 lowScores = 
   lapply(mostQRs
        , function(x) 
-         x %>% mutate(belowQ24 = q25.age > Score)
+         x %>% mutate(ofConcern = ifelse(q16.age > Score, "concern", "ok"))
   ) %>% 
     bind_rows() %>%
-    select(ID, AgeM, Scale, Score, q25.age, belowQ24) %>%
+    select(ID, AgeM, Scale, Score, q16.age, ofConcern) %>%
     pivot_wider(id_cols = c(ID, AgeM), names_from = "Scale"
-                , values_from="belowQ24")
+                , values_from="ofConcern")
 
 ## 2.2 Contingency table ####
 
@@ -121,24 +121,28 @@ lowScores =
 # considering only kids who have the Disti, the distn and whichever Most 
 # is being considered
 lowScores %>% 
-  mutate(DiST = #DiST.Irr | 
-           DiST.Non
-         , MoST = MoST.full | MoST.base | MoST.suffix | MoST.rule_total
-         , MoST.subs = MoST.base | MoST.suffix | MoST.rule_total) %>% 
-  group_by(
-    DiST
+  # mutate(DiST =#DiST.Irr 
+           # DiST.Non
+           #TRUE
+         # , MoST = MoST.full | MoST.base | MoST.suffix | MoST.rule_total
+         # , MoST.subs = MoST.base | MoST.suffix | MoST.rule_total
+         # ) %>% 
+  select(
+   # DiST
+    # , DiST.Irr
+    # , DiST.Non
     # , MoST.full
-    # , MoST.base
+    , MoST.base
     # , MoST.suffix
-    # , MoST.rule_total
+    , MoST.rule_total
     # , MoST
-    , MoST.subs
-    ) %>% 
-  summarise(Frequency = n()) %>% 
-  ungroup() %>% 
-  arrange(MoST.subs, desc(Frequency)) %>% 
-  drop_na %>% 
-  mutate(n = cumsum(Frequency))
+    # , MoST.subs
+    ) %>% table
+  # summarise(Frequency = n()) %>% 
+  # ungroup() %>% 
+  # arrange(desc(Frequency)) %>% 
+  # drop_na %>% 
+  # mutate(n = cumsum(Frequency))
 
 ### Any MoST vs Any DiST
 # of the 190 kids flagged by DiST*, 135 (71.1%) were caught by MoST as well.
