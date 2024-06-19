@@ -139,7 +139,7 @@ grid.arrange(
 )
 dev.off()
 
-# 3.0 Quantile Regressions quadratic Age ####
+# 3.0 Quantile Regressions Linear Age ####
 
 # There isn't really much evidence for the curvilinear relationship. I
 # think only one quadratic term was "significant" (Suffixes, at .05)
@@ -188,6 +188,7 @@ mostQRs.L.plots = lapply(
 ## 3.1 Full Word ####
 png("Images/QR.MoST.Linear.full.png", width=800, height=600)
 (QR.L.ggp.full = mostQRs.L.plots$MoST.full + 
+    theme(text=element_text(size=18))+
     ggtitle("Full Word Quantile Regression"))
 dev.off()
 ### 3.1.1 do DiST.non ####
@@ -196,6 +197,7 @@ dev.off()
 png("Images/QR.MoST.Linear.base.png", width=800, height=600)
 
 (QR.L.ggp.base = mostQRs.L.plots$MoST.base + 
+    theme(text=element_text(size=18))+
     ggtitle("Base Word Quantile Regression"))
 dev.off()
 
@@ -203,6 +205,7 @@ dev.off()
 png("Images/QR.MoST.Linear.suffix.png", width=800, height=600)
 
 (QR.L.ggp.suffix = mostQRs.L.plots$MoST.suffix + 
+    theme(text=element_text(size=18))+
     ggtitle("Suffix Quantile Regression", subtitle = "Note: ceiling"))
 dev.off()
 
@@ -210,6 +213,7 @@ dev.off()
 png("Images/QR.MoST.Linear.rule.png", width=800, height=600)
 
 (QR.L.ggp.rule = mostQRs.L.plots$MoST.rule_total + 
+    theme(text=element_text(size=18))+
     ggtitle("Rules Quantile Regression"))
 dev.off()
 ## 3.5 All four together ####

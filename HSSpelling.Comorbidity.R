@@ -12,7 +12,7 @@
 #
 
 # 0. Setup ####
-# include(quantreg)
+include(quantreg)
 if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
   source('HSSpelling.DataImport.R')
 
@@ -130,9 +130,9 @@ lowScores %>%
   select(
    # DiST
     # , DiST.Irr
-    # , DiST.Non
+    , DiST.Non
     # , MoST.full
-    , MoST.base
+    # , MoST.base
     # , MoST.suffix
     , MoST.rule_total
     # , MoST

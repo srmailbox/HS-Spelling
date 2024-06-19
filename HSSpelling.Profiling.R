@@ -13,6 +13,7 @@
 
 # 0. Setup ####
 include(psych)
+include(mclust)
 if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell", "HSSpelling"), exists))) 
   source('HSSpelling.DataImport.R')
 ### Note that MoST.base and MoST.rule both correlate with MoST.full at .9.
@@ -455,6 +456,9 @@ plot(HSSpell.mclust)
 VarLvls = c("AgeM", "MoST.full", "MoST.base", "MoST.suffix", "MoST.rule_total"
             , "MoST.dbl_cons", "MoST.drop_e", "MoST.f_v", "MoST.y_i"
             , "DiST.Irr", "DiST.Non", "CC2.Irr", "CC2.Non", "CC2.Reg")
+VarLbls = c("Age", "DiSTm-A full", "DiSTm-A base", "DiSTm-A suffix", "DiSTm-A rule"
+            , "MoST.dbl_cons", "MoST.drop_e", "MoST.f_v", "MoST.y_i"
+            , "DiSTi-A", "DiSTn-A", "CC2.Irr", "CC2.Non", "CC2.Reg")
 
 
 ### 3.1.1 Distribution Plots ####
@@ -485,7 +489,7 @@ plotDat.VEI7 %>% data.frame %>%
                , names_sep="\\.") %>% 
   pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
   mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  mutate(Var = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
   ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
   geom_col(position="dodge")+
   geom_errorbar(position="dodge")+
@@ -524,7 +528,7 @@ plotDat.VVI7 %>% data.frame %>%
                , names_sep="\\.") %>% 
   pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
   mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  mutate(Var = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
   ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
   geom_col(position="dodge")+
   geom_errorbar(position="dodge")+
@@ -589,7 +593,7 @@ plotDat.VEI6 %>% data.frame %>%
                , names_sep="\\.") %>% 
   pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
   mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  mutate(Var = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
   ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
   geom_col(position="dodge")+
   geom_errorbar(position="dodge")+
@@ -630,7 +634,7 @@ plotDat.VVI6 %>% data.frame %>%
                , names_sep="\\.") %>% 
   pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
   mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-  mutate(Var = factor(Var, levels=VarLvls)) %>% 
+  mutate(Var = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
   ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
   geom_col(position="dodge")+
   geom_errorbar(position="dodge")+
@@ -686,14 +690,17 @@ plotDat.VEE3 = merge(
                  , names_sep="\\.") %>% 
     pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
     mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-    mutate(Var = factor(Var, levels=VarLvls)) %>% 
-    ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
+    mutate(Measure = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
+    ggplot(aes(x=Group, y=Mean, fill=Measure, group=Measure, ymin=Mean-SE, ymax=Mean+SE))+
     geom_col(position="dodge")+
     geom_errorbar(position="dodge")+
     geom_vline(xintercept = 1:2+.5, col="grey")+
-    annotate(geom="label", x=1:3, y=1.75
+    annotate(geom="label", x=1:3, y=1.75, size=5
              , label=paste("N:", table(HSSpellOnly.VEE3$classification)))+
-    theme_minimal()+theme(panel.grid.major.x=element_blank())+
+    theme_minimal()+
+    theme(panel.grid.major.x=element_blank()
+          , text = element_text(size=18)
+          )+
     scale_fill_manual(
       # option="B", begin=.2, end=.8
       values=viridisLite::viridis(20, option="B", begin=.2)[c(1:4*2, 17, 19)]
@@ -726,7 +733,7 @@ plotDat.VEE4 = merge(
                  , names_sep="\\.") %>% 
     pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
     mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-    mutate(Var = factor(Var, levels=VarLvls)) %>% 
+    mutate(Var = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
     ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
     geom_col(position="dodge")+
     geom_errorbar(position="dodge")+
@@ -767,7 +774,7 @@ plotDat.VEE5 = merge(
                  , names_sep="\\.") %>% 
     pivot_wider(id_cols=Var:Group, names_from = Measure, values_from=Value) %>% 
     mutate(Group = gsub("X", "grp", Group)) %>% data.frame %>% 
-    mutate(Var = factor(Var, levels=VarLvls)) %>% 
+    mutate(Var = factor(Var, levels=VarLvls, labels=VarLbls)) %>% 
     ggplot(aes(x=Group, y=Mean, fill=Var, group=Var, ymin=Mean-SE, ymax=Mean+SE))+
     geom_col(position="dodge")+
     geom_errorbar(position="dodge")+
@@ -791,7 +798,7 @@ plotDat.VEE5 = merge(
 )
 ### 3.3.2 generate images ####
 
-png("Images/LPA.VEE3.png", width=800, height=600)
+png("Images/LPA.VEE3.lgTxt.png", width=800, height=600)
 plot.VEE3
 dev.off()
 
