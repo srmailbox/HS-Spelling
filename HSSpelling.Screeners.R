@@ -65,15 +65,15 @@ DiST.i.ItemCors = data.frame(Cor = t(cor(DiST.i$sub20p.irr.tot
            ) %>% 
   mutate(Item = rownames(.)) %>% arrange(Cor)
 
-#### 1.3.2 Scores on the top 10 items, by sub20 status ####
+#### 1.3.2 Scores on the top 7 items, by sub20 status ####
 
-DiST.i.screener = DiST.i.ItemCors$Item[1:10]
+DiST.i.screener = DiST.i.ItemCors$Item[1:7]
 
 DiST.i = DiST.i %>% 
   mutate(Irr.screener = rowSums(pick(all_of(DiST.i.screener))))
 
 ggplot(DiST.i, aes(x=sub20p.irr.tot, y=Irr.screener, group=sub20p.irr.tot)) +
-  geom_boxplot()+scale_y_continuous(breaks=0:10)+
+  geom_boxplot()+scale_y_continuous(breaks=0:7)+
   geom_point(aes(x=jitter(sub20p.irr.tot)))
 
 ## 1.4 Item Selection, by grade ####
@@ -92,7 +92,7 @@ DiST.i.ItemCors.byGrade =
   ) 
 
 DiST.i.screener.byGrade =
-  lapply(DiST.i.ItemCors.byGrade, function(x) x$Item[1:10])
+  lapply(DiST.i.ItemCors.byGrade, function(x) x$Item[1:7])
 
 DiST.i$Irr.gradescreener=NA
 for(s in 1:nrow(DiST.i))
@@ -102,25 +102,17 @@ for(s in 1:nrow(DiST.i))
 table(DiST.i$Grade,DiST.i$Irr.gradescreener, DiST.i$sub20p.irr.tot)
 
 #### So a rule of 5 or less on these grade-appropriate sets, would lead to
-# 100% sensitivity and the following "false positive rates"
+# 100% sensitivity "false positive rates" ranging from 6.3% to 25.4%
 
-aggregate((Irr.gradescreener<=5)~Grade+sub20p.irr.tot, DiST.i, mean)
-#    Grade sub20p.irr.tot             FalsePosRate
-# 1      6              0               0.10714286
-# 2      7              0               0.09677419
-# 3      8              0               0.00000000
-# 4      9              0               0.25396825
-# 5     10              0               0.16129032
-# 6     11              0               0.20000000
-
+aggregate((Irr.gradescreener<=4)~Grade+sub20p.irr.tot, DiST.i, mean)
 ### Could adopt different rules to reduce the FPR:
 # Grade           Rule       FalsePosRate
 #     6              2               0.000
-#     7              4               0.016
-#     8              5               0.000
-#     9              4               0.158
-#    10              5               0.161
-#    11              2               0.000
+#     7              4               0.177
+#     8              4               0.063
+#     9              4               0.254
+#    10              4               0.129
+#    11              2               0.086
 
 
 # 2.0 DiST.m - Baseword (as Nonwords) ####
@@ -180,15 +172,15 @@ DiST.m.base.ItemCors = data.frame(Cor = t(cor(DiST.m.base$sub20p.base.tot
   mutate(Item = rownames(.)) %>% arrange(Cor)
 ## Extremely weak correlations, so probably not worth considering
 
-#### 2.3.2 Scores on the top 10 items, by sub20 status ####
+#### 2.3.2 Scores on the top 7 items, by sub20 status ####
 
-DiST.m.base.screener = DiST.m.base.ItemCors$Item[1:10]
+DiST.m.base.screener = DiST.m.base.ItemCors$Item[1:7]
 
 DiST.m.base = DiST.m.base %>% 
   mutate(Base.screener = rowSums(pick(all_of(DiST.m.base.screener))))
 
 ggplot(DiST.m.base, aes(x=sub20p.base.tot, y=Base.screener, group=sub20p.base.tot)) +
-  geom_boxplot()+scale_y_continuous(breaks=0:10)+
+  geom_boxplot()+scale_y_continuous(breaks=0:7)+
   geom_point(aes(x=jitter(sub20p.base.tot)))
 
 ### Yep, terrible specificity
@@ -209,7 +201,7 @@ DiST.m.base.ItemCors.byGrade =
   ) 
 
 DiST.m.base.screener.byGrade =
-  lapply(DiST.m.base.ItemCors.byGrade, function(x) x$Item[1:10])
+  lapply(DiST.m.base.ItemCors.byGrade, function(x) x$Item[1:7])
 
 DiST.m.base$Base.gradescreener=NA
 for(s in 1:nrow(DiST.m.base))
@@ -221,28 +213,25 @@ table(DiST.m.base$Grade,DiST.m.base$Base.gradescreener, DiST.m.base$sub20p.base.
 ## This is much less sensitive than the Irregs were.
 
 # Very high FPR across the board
-aggregate((Base.gradescreener<=7)~Grade+sub20p.base.tot, DiST.m.base, mean)
+aggregate((Base.gradescreener<=5)~Grade+sub20p.base.tot, DiST.m.base, mean)
 #    Grade    sub.base.tot              FalsePosRate
-# 1      6               0                 0.3404255
-# 2      7               0                 0.2745098
-# 3      8               0                 0.2500000
-# 4      9               0                 0.2763158
-# 5     10               0                 0.1666667
-# 6     11               0                 0.3076923
+# 1      6               0                 0.5319149
+# 2      7               0                 0.2843137
+# 3      8               0                 0.3809524
+# 4      9               0                 0.3289474
+# 5     10               0                 0.1458333
+# 6     11               0                 0.2820513
 
 ### Could adopt different rules to reduce the FPR:
 # Grade           Rule       FalsePosRate
-#     6              5               0.042
-#     7              7               0.274
-#     8              6               0.119
-#     9              6               0.131
-#    10              6               0.021
-#    11              6               0.077
+#     6              3               0.063
+#     7              5               0.284
+#     8              4               0.167
+#     9              4               0.145
+#    10              5               0.146
+#    11              5               0.282
 
-## Grade 7 stays terrible, it seems they are just much messier spellers in this sample.
-# If we adopted a rule of 6 for Grade 7, we would miss 1/19 or about 5% of at-risk kids
-# but would reduce the FPR from 27.4% to 12.7% or so. that kid also *just* qualifies as
-# at-risk.
+# Ugh. Even separate rules doesn't help that much
 
 # 3.0 DiST.m - Rule (as Morph) ####
 # These are based on the MoST dataset.Only 15 items have rules
@@ -304,15 +293,15 @@ DiST.m.rule.ItemCors = data.frame(Cor = t(cor(DiST.m.rule$sub20p.rule.tot
   mutate(Item = rownames(.)) %>% arrange(Cor)
 ## Weak correlations, so probably not worth considering
 
-#### 3.3.2 Scores on the top 10 items, by sub20 status ####
+#### 3.3.2 Scores on the top 7 items, by sub20 status ####
 
-DiST.m.rule.screener = DiST.m.rule.ItemCors$Item[1:10]
+DiST.m.rule.screener = DiST.m.rule.ItemCors$Item[1:7]
 
 DiST.m.rule = DiST.m.rule %>% 
   mutate(Rule.screener = rowSums(pick(all_of(DiST.m.rule.screener))))
 
 ggplot(DiST.m.rule, aes(x=sub20p.rule.tot, y=Rule.screener, group=sub20p.rule.tot)) +
-  geom_boxplot()+scale_y_continuous(breaks=0:10)+
+  geom_boxplot()+scale_y_continuous(breaks=0:7)+
   geom_point(aes(x=jitter(sub20p.rule.tot)))
 
 aggregate((Rule.screener<=6)~Grade, DiST.m.rule, mean, na.rm=T)
@@ -334,7 +323,7 @@ DiST.m.rule.ItemCors.byGrade =
   ) 
 
 DiST.m.rule.screener.byGrade =
-  lapply(DiST.m.rule.ItemCors.byGrade, function(x) x$Item[1:10])
+  lapply(DiST.m.rule.ItemCors.byGrade, function(x) x$Item[1:7])
 
 DiST.m.rule$Rule.gradescreener=NA
 for(s in 1:nrow(DiST.m.rule))
@@ -346,25 +335,29 @@ table(DiST.m.rule$Grade,DiST.m.rule$Rule.gradescreener, DiST.m.rule$sub20p.rule.
 ## This is much less sensitive than the Irregs were.
 
 # Very high FPR across the board
-aggregate((Rule.gradescreener<=6)~Grade+sub20p.rule.tot, DiST.m.rule, mean)
+aggregate((Rule.gradescreener<=4)~Grade+sub20p.rule.tot, DiST.m.rule, mean)
 #    Grade    sub.rule.tot              FalsePosRate
-# 1      6               0                 0.4390244
-# 2      7               0                 0.2500000
-# 3      8               0                 0.3333333
-# 4      9               0                 0.1600000
-# 5     10               0                 0.0250000
-# 6     11               0                 0.0000000
+# 1      6               0                0.31707317
+# 2      7               0                0.21875000
+# 3      8               0                0.33333333
+# 4      9               0                0.21333333
+# 5     10               0                0.00000000
+# 6     11               0                0.0869565
 
-# Quite poor, especially for G6
+# Quite poor, especially for G6 and 8
+
+table(DiST.m.base$Grade,DiST.m.base$Base.gradescreener, DiST.m.base$sub20p.base.tot)
 
 ### If we adopt different rules to reduce the FPR:
-# Grade           Rule       FalsePosRate
-#     6              3               0.000
-#     7              5               0.156
-#     8              5               0.111
-#     9              6               0.160
-#    10              6               0.025
-#    11              6               0.000
+# Grade            Rule       FalsePosRate
+#     6              3               0.125
+#     7              5               0.219
+#     8              4               0.333
+#     9              4               0.213
+#    10              4               0.000
+#    11              3               0.000
+
+# Ugh.
 
 # 4.0 Merging Baseword and Rule item sets ####
 
@@ -441,8 +434,17 @@ table(DiST.m.rule$Grade,DiST.m.rule$Rule.combined, DiST.m.rule$sub20p.rule.tot)
 
 # 10.0 Output ####
 DiST.m.base.screener.byGrade %>% data.frame %>% 
-  write.csv(file = "DiST.m.Nonwords.csv", row.names=F)
+  write.csv(file = "DiST.m.Nonwords.7.csv", row.names=F)
 DiST.m.rule.screener.byGrade %>% data.frame %>% 
-  write.csv(file = "DiST.m.Morphology.csv", row.names=F)
+  write.csv(file = "DiST.m.Morphology.7.csv", row.names=F)
 DiST.i.screener.byGrade %>% data.frame %>% 
-  write.csv(file = "DiST.i.Irregs.csv", row.names=F)
+  write.csv(file = "DiST.i.Irregs.7.csv", row.names=F)
+
+
+# 11.0 Comorbidities ####
+
+(DiST.atrisk = merge(DiST.i %>% select(ID, sub20p.irr.tot)
+      , DiST.m.base %>% select(ID, sub20p.base.tot)) %>% 
+  merge(DiST.m.rule %>% select(ID, sub20p.rule.tot))) %>% 
+  select(starts_with("sub")) %>% 
+  table(useNA="ifany")
