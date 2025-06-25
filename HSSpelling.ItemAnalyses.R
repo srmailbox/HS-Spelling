@@ -14,7 +14,7 @@
 # 0. Setup ####
 include(CTT)
 include(psych)
-if (!all(sapply(c("DiST.i", "DiST.n", "MoST"), exists))) 
+if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell"), exists))) 
   source('HSSpelling.DataImport.R')
 
 # 1.0 CTT ####
@@ -23,10 +23,22 @@ if (!all(sapply(c("DiST.i", "DiST.n", "MoST"), exists)))
 
 DiSTi.itemAnalysis=itemAnalysis(DiST.i %>% 
                select(-ID, -School,  -Grade, -Gender, -testDate
-                      , -Excluded, -totalAcc) %>% 
+                      , -Excluded, -DiST.Irr) %>% 
                drop_na() %>% data.frame
              , itemReport=TRUE)
 DiSTi.itemAnalysis$itemReport
+
+### 1.1.1 (looking for a good subset of items for WiL) ####
+highPred = DiSTi.itemAnalysis$itemReport %>% arrange(desc(pBis)) %>% 
+  slice(1:15) %>% select(itemName) %>% unlist %>% as.vector
+
+(
+  DiST.i %>% select(all_of(highPred)) %>% 
+    data.frame %>% drop_na %>% itemAnalysis
+)$itemReport
+
+(DiST.i %>% select(all_of(highPred)) %>% mutate(Score = rowSums(.))) %>% 
+  ggplot(aes(x=Score))+geom_histogram(bins=16)
 
 # This deosn't particularly raise flags. There are a few items with poor 
 # discriminability, but they are generally the hardest items so that isn't
