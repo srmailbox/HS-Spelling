@@ -13,7 +13,7 @@
 
 # 0. Setup ####
 include(psych)
-if (!all(sapply(c("DiST.i", "DiST.n", "MoST.spell"), exists))) 
+if (!all(sapply(c("DiST.i", "DiST.n"), exists))) 
   source('HSSpelling.DataImport.R')
 
 # 1.0 DiST.i ####
