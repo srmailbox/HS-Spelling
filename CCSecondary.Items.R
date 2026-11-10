@@ -20,6 +20,7 @@ if (!all(sapply(c("DiST.i", "DiST.n"), exists)))
 ## 1.1 Data split ####
 DiST.i.grade = by(DiST.i, DiST.i$Grade, data.frame)
 names(DiST.i.grade)=paste0("Gr",names(DiST.i.grade))
+DiST.i.grade$Gr6=NULL
 
 ## 1.2 IRT ####
 DiSTi.irt = lapply(
@@ -54,6 +55,7 @@ for (nm in names(DiSTi.irt)){
 ## 2.1 Data split ####
 DiST.n.grade = by(DiST.n, DiST.n$Grade, data.frame)
 names(DiST.n.grade)=paste0("Gr",names(DiST.n.grade))
+DiST.n.grade$Gr6 = NULL # no need to keep Gr6
 
 ## 2.2 IRT ####
 DiSTn.irt = lapply(
@@ -82,3 +84,61 @@ for (nm in names(DiSTn.irt)){
   dev.off()
   par(mfrow=c(1,1))
 }
+
+
+# 3.0 profiles of decent items ####
+# For every item that shows up as ok for at least one age, let's look at how
+# they do at every age.
+
+## 3.1 Irregs ####
+okItms = lapply(DiSTi.irt
+       , function(x) {
+         tmp = plot(x, plot=FALSE)
+         rownames(tmp$max.info)[tmp$max.info>1.25 & !is.na(tmp$max.info)]
+         }
+       )
+
+DiSTi.okitms = unlist(okItms) |> unique()
+
+DiSTi.okitms.profiles = 
+  lapply(DiSTi.irt
+         , function(x) {
+           tmp = plot(x, plot=FALSE)
+           itms = DiSTi.okitms[DiSTi.okitms %in% rownames(x$irt$discrimination)]
+           data.frame(Item = itms, disc =  x$irt$discrimination[itms,1]
+                      , diff = x$irt$difficulty[[1]][itms]
+                      , max = tmp$max.info[itms,1])
+           
+         }
+         ) |> 
+  imap(function(x,y) x |> rename_with(~paste(.,y, sep="."), .cols=c(disc, diff, max))) |> 
+  reduce(full_join, by="Item")
+
+## 3.2 Nonwords ####
+
+okItms = lapply(DiSTn.irt
+                , function(x) {
+                  tmp = plot(x, plot=FALSE)
+                  rownames(tmp$max.info)[tmp$max.info>1.25 & !is.na(tmp$max.info)]
+                }
+)
+
+DiSTn.okitms = unlist(okItms) |> unique()
+
+DiSTn.okitms.profiles = 
+  lapply(DiSTn.irt
+         , function(x) {
+           tmp = plot(x, plot=FALSE)
+           itms = DiSTn.okitms[DiSTn.okitms %in% rownames(x$irt$discrimination)]
+           data.frame(Item = itms, disc =  x$irt$discrimination[itms,1]
+                      , diff = x$irt$difficulty[[1]][itms]
+                      , max = tmp$max.info[itms,1])
+           
+         }
+  ) |> 
+  imap(function(x,y) x |> rename_with(~paste(.,y, sep="."), .cols=c(disc, diff, max))) |> 
+  reduce(full_join, by="Item")
+
+## 3.2 output ####
+write.csv(DiSTi.okitms.profiles, file="OKItems.DiSTi.csv")
+write.csv(DiSTn.okitms.profiles, file="OKItems.DiSTn.csv")
