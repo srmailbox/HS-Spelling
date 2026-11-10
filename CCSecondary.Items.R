@@ -113,7 +113,6 @@ DiSTi.okitms.profiles =
            data.frame(Item = itms, disc =  x$irt$discrimination[itms,1]
                       , diff = x$irt$difficulty[[1]][itms]
                       ) |> mutate(max=disc^2*1.702^2/4)
-           
          }
          ) |> 
   imap(function(x,y) x |> rename_with(~paste(.,y, sep="."), .cols=c(disc, diff, max))) |> 
